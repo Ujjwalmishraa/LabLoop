@@ -14,7 +14,8 @@
     "test": "NODE_ENV=test node --experimental-vm-modules ../node_modules/jest/bin/jest.js --runInBand",
     "create-admin": "node src/scripts/create-admin.js",
     "seed:dev": "node src/scripts/seed-dev.js",
-    "e2e:server": "node src/scripts/e2e-server.js"
+    "e2e:server": "node src/scripts/e2e-server.js",
+    "migrate:labloop": "node src/scripts/migrate-labloop.js"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1173.0",

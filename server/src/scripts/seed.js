@@ -72,7 +72,7 @@ export async function seedDemoActivity(data) {
   const kumarUser = await User.findById(kumar.user);
   const staff = await User.findOne({ role: "lab_staff", lab: shree._id });
   const rampur = data.villages.find((v) => v.name === "Rampur");
-  const ids = async (names) => (await LabTest.find({ lab: shree._id, name: { $in: names } })).map((t) => t._id);
+  const ids = async (names) => (await LabTest.find({ lab: shree._id, name: { $in: names }, active: true })).map((t) => t._id);
   const asUser = (user) => ({ user, ip: "seed", get: () => undefined });
   const today = todayIso();
   const tomorrow = addDaysIso(today, 1);
@@ -83,7 +83,7 @@ export async function seedDemoActivity(data) {
     patient: ram,
     villageId: rampur._id,
     labId: shree._id,
-    testIds: await ids(["CBC", "HbA1c"]),
+    testIds: await ids(["HbA1c", "Lipid Profile"]),
     date: today,
     slot: "08-10",
     address: "Ward 4, near the temple, Rampur",

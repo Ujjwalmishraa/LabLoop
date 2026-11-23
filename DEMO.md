@@ -12,7 +12,7 @@ Password for every account: **`Nidaan@2026`**. Use three browser windows (or one
 
 **1. Language (30 s).** On the landing page tap **English** in the top bar, then **हिंदी**. Every screen, date, status and server error follows. Leave it in the language of your audience.
 
-**2. Patient books with location (1 min).** Patient window: log in as Ram → **Book a test** → Shree Pathology Lab → pick CBC + HbA1c → **Continue** → address → **Use my current location** → tick consent → **Confirm booking**. Show the receipt: booking code and the OTP in the highlighted box (only the patient sees it).
+**2. Patient books with location (1 min).** Patient window: log in as Ram → **Book a test** → Shree Pathology Lab → pick HbA1c + Thyroid → **Continue** → address → **Use my current location** → tick consent → **Confirm booking**. Show the receipt: booking code and the OTP in the highlighted box (only the patient sees it).
 
 **3. Lab: route, Navigate, leaving (1 min).** Lab window → **To collect**. On Ram's seeded booking ("Ward 4, near the temple") show distance · ~minutes, the map, and **Navigate** (opens free Google Maps directions). Tap **I'm leaving now**. Patient window → **Booking**: the banner says *"Collector will reach in about X min (by …)"*.
 

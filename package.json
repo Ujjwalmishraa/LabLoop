@@ -18,7 +18,8 @@
     "e2e": "playwright test",
     "create-admin": "npm run create-admin -w server --",
     "seed:dev": "npm run seed:dev -w server",
-    "i18n:check": "node scripts/i18n-check.js"
+    "i18n:check": "node scripts/i18n-check.js",
+    "migrate:labloop": "npm run migrate:labloop -w server"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.0",
