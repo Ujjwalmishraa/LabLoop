@@ -201,6 +201,7 @@ const PHRASE_LIST = [
   ["Test nahi mila", "टेस्ट नहीं मिला", "Test not found"],
   ["Patient rate ₹{0} (B2B) se kam nahi ho sakta", "पेशेंट रेट ₹{0} (B2B) से कम नहीं हो सकता", "Patient rate can't be below ₹{0} (B2B)"],
   ["Sirf confirm booking ke liye nikal sakte hain", "सिर्फ़ कन्फ़र्म बुकिंग के लिए निकल सकते हैं", "You can only leave for a confirmed booking"],
+  ["Raasta nahi mila", "रास्ता नहीं मिला", "Could not find the route"],
   ["Collector pehle hi nikal chuka hai", "कलेक्टर पहले ही निकल चुका है", "The collector has already left"],
   // patient
   ["Gaon nahi mila", "गाँव नहीं मिला", "Village not found"],

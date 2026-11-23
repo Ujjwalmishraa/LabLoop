@@ -25,7 +25,7 @@ async function login(page, id, password = PW, path = "/login") {
 }
 
 // Patient path from "Book a test" to the success screen. Returns the OTP shown.
-async function bookCbcHba1c(page) {
+async function bookCbcHba1c(page, { useLocation = false } = {}) {
   await page.getByRole("link", { name: /Book a test/ }).click();
   await expect(page.getByRole("heading", { name: "Labs near you" })).toBeVisible();
   await page.locator(".lab-card", { hasText: "Shree Pathology Lab" }).getByRole("button", { name: "Choose tests →" }).click();
@@ -34,6 +34,10 @@ async function bookCbcHba1c(page) {
   await expect(page.locator(".fb-total")).toHaveText("₹950");
   await page.getByRole("button", { name: "Continue →" }).click();
   await page.getByLabel("Home address").fill("Near the temple, ward 4");
+  if (useLocation) {
+    await page.getByRole("button", { name: "Use my current location" }).click();
+    await expect(page.getByTestId("loc-saved")).toContainText("Location saved");
+  }
   await page.getByText("The lab and my doctor may see my report").click();
   await page.getByRole("button", { name: "Confirm booking ✓" }).click();
   await expect(page.getByRole("heading", { name: "Booking done!" })).toBeVisible();
@@ -72,6 +76,9 @@ test("0. one language switch changes every patient screen", async ({ page }) => 
 
 test("1. patient signs up and books a test", async ({ page }) => {
   await english(page);
+  // "Use my current location" only asks the browser after the tap
+  await page.context().grantPermissions(["geolocation"]);
+  await page.context().setGeolocation({ latitude: 26.121, longitude: 84.496, accuracy: 20 });
   await page.goto("/");
   await expect(page.getByRole("heading", { name: "LabLoop" })).toBeVisible();
   await expect(page.locator(".ll-tagline")).toHaveText("Lab tests, looped to your doorstep.");
@@ -87,7 +94,7 @@ test("1. patient signs up and books a test", async ({ page }) => {
   await page.getByRole("button", { name: "Continue →" }).click();
   await expect(page.getByRole("heading", { name: /Namaste Gita/ })).toBeVisible();
 
-  const { code } = await bookCbcHba1c(page);
+  const { code } = await bookCbcHba1c(page, { useLocation: true });
   await page.getByRole("link", { name: "See my bookings" }).click();
   await expect(page.getByTestId("booking-card").first()).toContainText(code);
   await expect(page.getByTestId("mine-otp").first()).toBeVisible();
@@ -246,4 +253,23 @@ test("4. doctor sends a clinic pickup for a walk-in; lab collects at the clinic 
   const [popup] = await Promise.all([doctor.waitForEvent("popup"), done.getByRole("button", { name: "View report" }).click()]);
   await popup.waitForLoadState();
   expect(popup.url()).toContain("/api/v1/files/");
+});
+
+test("5. lab sees distance and Navigate, taps I'm leaving now; the patient sees the ETA", async ({ browser }) => {
+  const lab = await newPage(browser);
+  await login(lab, "lab.shree@nidaansetu.test", PW, "/login/lab");
+  await lab.locator(".side-nav").getByRole("button", { name: /To collect/ }).click();
+  // Seeded confirmed home booking for Ram (npm run seed:dev / e2e server)
+  const card = lab.getByTestId("lab-card").filter({ hasText: "Ward 4, near the temple" }).first();
+  await expect(card.getByTestId("route-line")).toContainText(/km · ~\d+ min/);
+  await expect(card.getByTestId("route-line")).toContainText("approx.");
+  await expect(card.getByTestId("navigate-link")).toHaveAttribute("href", /^https:\/\/www\.google\.com\/maps\/dir\/\?api=1&origin=26\.112,84\.5&destination=[\d.]+,[\d.]+&travelmode=driving$/);
+  await card.getByRole("button", { name: "I'm leaving now" }).click();
+  await expect(card).toContainText("Left at");
+  await expect(card.getByRole("button", { name: "I'm leaving now" })).toHaveCount(0);
+
+  const patient = await newPage(browser);
+  await login(patient, "9876500001");
+  await patient.goto("/meri-booking");
+  await expect(patient.getByTestId("eta-banner").first()).toContainText(/Collector will reach in about \d+ min/);
 });

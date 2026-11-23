@@ -104,12 +104,16 @@ router.post(
       slot: z.string().trim().min(1).max(40),
       paymentMode: z.enum(["cash", "upi"]).default("cash"),
       consent: z.literal(true, { message: "Report dekhne ki anumati par tick karein" }),
+      // "Use my current location" (only sent after the patient taps it); else the village point is used.
+      location: z.object({ lat: z.number().min(-90).max(90), lng: z.number().min(-180).max(180) }).optional(),
     }),
   }),
   async (req, res) => {
     const villageId = req.body.villageId || req.user.village;
     if (!villageId) throw badRequest("Pehle apna gaon chunein", "NO_VILLAGE");
-    const { booking } = await createBooking(req, { ...req.body, villageId, patient: req.user });
+    const { location, ...rest } = req.body;
+    const point = location ? { type: "Point", coordinates: [location.lng, location.lat] } : undefined;
+    const { booking } = await createBooking(req, { ...rest, location: point, villageId, patient: req.user });
     await booking.populate(BOOKING_POPULATE);
     res.status(201).json(patientBookingView(booking));
   }

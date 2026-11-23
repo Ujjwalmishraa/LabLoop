@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { z } from "zod";
 import multer from "multer";
-import { Booking, LabTest, Lab, Settlement } from "../models/index.js";
+import { Booking, LabTest, Lab, Settlement, Village } from "../models/index.js";
 import { guard } from "../middleware/auth.js";
 import { validate, idParams } from "../middleware/validate.js";
 import { otpLimiter } from "../middleware/security.js";
@@ -13,6 +13,7 @@ import { badRequest, conflict, notFound } from "../lib/errors.js";
 import { getStorage } from "../lib/storage/index.js";
 import { randomToken } from "../lib/crypto.js";
 import { financeRange, financeMatch, labFinanceSummary, financeLedger } from "../services/finance.js";
+import { getRoute, mapsLink, latLng } from "../services/route.js";
 
 const router = Router();
 router.use(...guard("lab_staff"));
@@ -128,6 +129,44 @@ router.patch(
     await respond(res, b);
   }
 );
+
+// ---------- route + ETA ----------
+// Origin: the collector's live position if they shared it, else the lab. Destination: the clinic for
+// clinic pickups; for home, the pin the patient shared, else their village.
+const fromQuery = z.object({
+  fromLat: z.coerce.number().min(-90).max(90).optional(),
+  fromLng: z.coerce.number().min(-180).max(180).optional(),
+});
+
+async function tripFor(req, b, from) {
+  let to = b.collectionPoint === "clinic" ? latLng(b.clinic?.location) : latLng(b.location);
+  if (!to && b.village) to = latLng((await Village.findById(b.village).select("location"))?.location);
+  let origin = from?.fromLat !== undefined && from?.fromLng !== undefined ? { lat: from.fromLat, lng: from.fromLng } : null;
+  if (!origin) origin = latLng((await Lab.findById(req.user.lab).select("location"))?.location);
+  if (!to || !origin) throw notFound("Raasta nahi mila", "NO_ROUTE");
+  const route = await getRoute({ from: origin, to });
+  return { ...route, from: origin, to, originIsLab: !from?.fromLat, mapsUrl: mapsLink(origin, to) };
+}
+
+router.get("/bookings/:id/route", validate({ params: idParams, query: fromQuery }), async (req, res) => {
+  const b = await ownBooking(req);
+  res.json(await tripFor(req, b, req.q));
+});
+
+// "I'm leaving now": stores the ETA once; the booking stays "confirmed" (no new status).
+router.patch("/bookings/:id/depart", validate({ params: idParams, body: fromQuery }), async (req, res) => {
+  const b = await ownBooking(req);
+  if (b.status !== "confirmed") throw conflict("Sirf confirm booking ke liye nikal sakte hain", "NOT_DEPARTABLE");
+  if (b.departedAt) throw conflict("Collector pehle hi nikal chuka hai", "ALREADY_DEPARTED");
+  const trip = await tripFor(req, b, req.body);
+  const now = new Date();
+  b.departedAt = now;
+  b.eta = { minutes: trip.durationMin, at: new Date(now.getTime() + trip.durationMin * 60000), approximate: trip.approximate, distanceKm: trip.distanceKm };
+  b.history.push({ status: b.status, at: now, by: req.user._id, note: "Collector left / कलेक्टर निकल गया" });
+  await b.save();
+  await audit(req, { action: "booking.depart", entityType: "Booking", entityId: b._id, after: { departedAt: now, eta: b.eta } });
+  await respond(res, b);
+});
 
 // Reports: PDF/JPG/PNG, max 5 MB, kept in memory only until written to private storage.
 const ALLOWED = {

@@ -46,6 +46,7 @@ const ALLOWED = [
   /^[A-Z]{2,5}\d*$/, // codes like CBC, NS123
   /^(Email|Password|WhatsApp|Google Maps|OpenStreetMap|Leaflet|English|हिंदी|Siwan, Bihar)$/,
   /^[\dX]{6,}$/, // phone placeholder like 98XXXXXXXX
+  /^[A-Z]$/, // single-letter map markers (A -> B)
   /^Login ID: Password:$/, // copy-to-clipboard text, kept the same in every language
   /^[\p{N}\p{P}\p{S}\s]*$/u, // numbers, punctuation and symbols only
   /^[a-z]+(\.[\w-]+)+$/, // an i18n key passed to t() later, e.g. "portal.lab"

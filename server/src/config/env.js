@@ -32,6 +32,11 @@ const schema = z.object({
   SMTP_PASS: z.string().optional(),
   MAIL_FROM: z.string().default("LabLoop <no-reply@nidaansetu.in>"),
 
+  // Routing for the collector's ETA. Optional: without a key the free OSRM demo is used, then a
+  // straight-line estimate. ROUTING_OFFLINE=true skips the network entirely (no-internet demos).
+  ORS_API_KEY: z.string().optional(),
+  ROUTING_OFFLINE: z.enum(["true", "false"]).default("false"),
+
   RATE_LIMIT_ENABLED: z
     .enum(["true", "false"])
     .optional()

@@ -179,6 +179,9 @@ const bookingSchema = new Schema(
     otpAttempts: { type: Number, default: 0 },
     otpLocked: { type: Boolean, default: false },
     collectionTime: String,
+    // Collector left for the pickup ("I'm leaving now"). Not a status: the booking stays "confirmed".
+    departedAt: Date,
+    eta: { minutes: Number, at: Date, approximate: Boolean, distanceKm: Number },
     collectedAt: Date,
     report: { key: String, name: String, mime: String, size: Number, uploadedAt: Date },
     source: { type: String, enum: ["patient", "doctor"], default: "patient" },

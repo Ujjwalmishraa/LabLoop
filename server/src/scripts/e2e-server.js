@@ -5,6 +5,7 @@ process.env.PORT ??= "5055";
 process.env.BCRYPT_COST ??= "4";
 process.env.RATE_LIMIT_ENABLED = "false";
 process.env.CRON_ENABLED = "false";
+process.env.ROUTING_OFFLINE ??= "true"; // deterministic ETAs, no calls to public routing servers
 process.env.STORAGE_DRIVER = "local";
 process.env.STORAGE_LOCAL_DIR ??= "storage/e2e";
 process.env.CLIENT_ORIGIN ??= "http://localhost:5174";

@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { Link } from "react-router";
 import { Icon } from "../../components/Icons.jsx";
 import { testHint } from "../../testInfo.js";
+import { useMyLocation } from "../../components/useMyLocation.js";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { get, post, errorMessage, fieldErrors } from "../../api/client.js";
 import { useAuth } from "../../auth/AuthContext.jsx";
@@ -207,6 +208,7 @@ function Details({ lab, cart, onBack, onDone }) {
   const total = cart.reduce((s, x) => s + x.listingPrice, 0);
   const fee = feeFor(lab, total);
   const fasting = cart.some((x) => x.fastingRequired);
+  const loc = useMyLocation();
 
   async function addMember() {
     if (!newMember?.name?.trim()) return setErrs({ member: t("err.name") });
@@ -240,6 +242,8 @@ function Details({ lab, cart, onBack, onDone }) {
         slot: f.slot,
         paymentMode: f.paymentMode,
         consent: true,
+        // Only if the patient tapped "Use my current location"; otherwise the village point is used.
+        location: loc.position ? { lat: loc.position.lat, lng: loc.position.lng } : undefined,
       });
       qc.invalidateQueries({ queryKey: ["myBookings"] });
       onDone(b);
@@ -302,6 +306,21 @@ function Details({ lab, cart, onBack, onDone }) {
       <Field label={t("details.address")} hint={t("details.addressHint", { village: user.village.name })} error={errs.address}>
         <input value={f.address} onChange={(e) => setF({ ...f, address: e.target.value })} placeholder={t("details.addressPh")} autoComplete="street-address" />
       </Field>
+      <div className="loc-row">
+        {loc.position ? (
+          <p className="ok loc-ok" role="status" data-testid="loc-saved">
+            <Icon name="pin" size={18} /> {t("loc.saved", { m: loc.position.accuracy })}{" "}
+            <button type="button" className="link-btn" onClick={loc.clear}>
+              {t("loc.remove")}
+            </button>
+          </p>
+        ) : (
+          <button type="button" className="secondary-btn small" onClick={loc.locate} disabled={loc.busy}>
+            <Icon name="pin" size={18} /> {loc.busy ? t("route.locating") : t("loc.useMine")}
+          </button>
+        )}
+        <span className="field-hint">{loc.error ? t(loc.error) : t("loc.hint", { village: user.village.name })}</span>
+      </div>
 
       <div className="field">
         <span className="field-label">{t("details.day")}</span>
