@@ -74,6 +74,59 @@ describe("Accept-Language", () => {
   });
 });
 
+describe("common flows in English", () => {
+  const en = (r) => r.set("Accept-Language", "en");
+  let lab;
+  beforeAll(async () => {
+    lab = await login(app, "lab.shree@nidaansetu.test");
+  });
+
+  test("out of range, wrong OTP and file type", async () => {
+    const sita = await login(app, "9876500002");
+    const sonbarsa = await village("Sonbarsa");
+    const far = await en(
+      as(app, sita.token).post("/bookings", {
+        labId: String(data.labs.shree._id),
+        testIds: await testIds(data.labs.shree, ["CBC"]),
+        villageId: String(sonbarsa._id),
+        address: "Near school",
+        date: tomorrow(),
+        slot: "06-08",
+        consent: true,
+      })
+    );
+    expect(far.body.error).toMatchObject({ code: "OUT_OF_RANGE", message: "This lab does not collect samples in your village" });
+
+    const rampur = await village("Rampur");
+    const b = await as(app, ram.token).post("/bookings", {
+      labId: String(data.labs.shree._id),
+      testIds: await testIds(data.labs.shree, ["CBC"]),
+      villageId: String(rampur._id),
+      address: "Ward 4",
+      date: tomorrow(),
+      slot: "06-08",
+      consent: true,
+    });
+    await as(app, lab.token).patch(`/lab/bookings/${b.body._id}/confirm`, { collectionTime: "06-08" });
+    const wrong = await en(as(app, lab.token).patch(`/lab/bookings/${b.body._id}/collect`, { otp: b.body.otp === "0000" ? "1111" : "0000" }));
+    expect(wrong.body.error).toMatchObject({ code: "WRONG_OTP", message: "Wrong OTP. 4 tries left." });
+
+    await as(app, lab.token).patch(`/lab/bookings/${b.body._id}/collect`, { otp: b.body.otp });
+    const txt = await en(as(app, lab.token).upload(`/lab/bookings/${b.body._id}/report`, "report", Buffer.from("hello"), "r.txt", "text/plain"));
+    expect(txt.body.error).toMatchObject({ code: "BAD_FILE_TYPE", message: "Please upload a PDF, JPG or PNG file only" });
+    const fake = await en(as(app, lab.token).upload(`/lab/bookings/${b.body._id}/report`, "report", Buffer.from("not a pdf"), "r.pdf", "application/pdf"));
+    expect(fake.body.error).toMatchObject({ code: "BAD_FILE_TYPE", message: "The file is damaged or not a PDF/JPG/PNG" });
+  });
+
+  test("OTP locked, tokens full and link expired have English text", () => {
+    expect(translateText("en", "Bahut baar galat OTP. Booking lock ho gayi, LabLoop team se sampark karein.")).toBe(
+      "Too many wrong OTPs. The booking is locked, please contact the LabLoop team."
+    );
+    expect(translateText("en", "Is din ke saare number bhar gaye. Doosra din chunein.")).toBe("All tokens for this day are taken. Please pick another day.");
+    expect(translateText("en", "Link purana ho gaya. Report dobara kholein.")).toBe("This link has expired. Please open the report again.");
+  });
+});
+
 describe("saved language", () => {
   test("PATCH /auth/me/lang saves the language for any role; /auth/me returns it", async () => {
     const lab = await login(app, "lab.shree@nidaansetu.test");

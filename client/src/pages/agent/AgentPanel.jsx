@@ -7,6 +7,7 @@ import { useAuth } from "../../auth/AuthContext.jsx";
 import { PanelShell, Badge, ErrorMsg, Field, Ok, Pager, QueryState, TempPassword } from "../../components/ui.jsx";
 import { rs, prettyDate, prettyDateTime, DAYS } from "../../utils.js";
 import { ScheduleRows } from "../doctor/DoctorPanel.jsx";
+import { t as tx } from "../../i18n/I18nContext.jsx";
 
 const SAMPLE_TESTS = `CBC = 400
 Sugar Fasting = 50
@@ -26,13 +27,13 @@ export default function AgentPanel() {
   const [openLab, setOpenLab] = useState(null);
   return (
     <PanelShell
-      role={user.role === "super_admin" ? "Onboarding (admin)" : "Field agent"}
+      role={user.role === "super_admin" ? tx("agent.onboardingAdmin") : tx("agent.fieldAgent")}
       tabs={[
-        { key: "mine", label: "Mere jode hue", icon: "list" },
-        { key: "village", label: "Gaon jodein", icon: "map" },
-        { key: "lab", label: "Lab jodein", icon: "flask" },
-        { key: "doctor", label: "Doctor jodein", icon: "steth" },
-        { key: "bookings", label: "Lab booking", icon: "file" },
+        { key: "mine", label: tx("agent.mereJodeHue"), icon: "list" },
+        { key: "village", label: tx("agent.gaonJodein"), icon: "map" },
+        { key: "lab", label: tx("agent.labJodein"), icon: "flask" },
+        { key: "doctor", label: tx("agent.doctorJodein"), icon: "steth" },
+        { key: "bookings", label: tx("agent.labBooking"), icon: "file" },
       ]}
       value={openLab ? "mine" : tab}
       onChange={(k) => {
@@ -43,7 +44,7 @@ export default function AgentPanel() {
         user.role === "super_admin" && (
           <Link className="secondary-btn small" to="/admin">
             <Icon name="chart" size={18} />
-            Admin panel
+            {tx("agent.adminPanel")}
           </Link>
         )
       }
@@ -75,23 +76,23 @@ function LocationPicker({ value, onChange, error, onVillage }) {
   const villages = useQuery({ queryKey: ["villages"], queryFn: () => get("/villages", { limit: 500 }) });
   const [gpsErr, setGpsErr] = useState("");
   const useGps = () => {
-    if (!navigator.geolocation) return setGpsErr("Is phone mein GPS nahi mila");
+    if (!navigator.geolocation) return setGpsErr(tx("agent.isPhoneMeinGps"));
     navigator.geolocation.getCurrentPosition(
       (p) => onChange({ lat: p.coords.latitude.toFixed(6), lng: p.coords.longitude.toFixed(6) }),
-      () => setGpsErr("Location nahi mili. Permission dein ya lat/lng likhein."),
+      () => setGpsErr(tx("agent.locationNahiMiliPermission")),
       { enableHighAccuracy: true, timeout: 15000 }
     );
   };
   const valid = value.lat !== "" && value.lng !== "" && !Number.isNaN(Number(value.lat)) && !Number.isNaN(Number(value.lng));
   return (
     <fieldset className="location">
-      <legend className="field-label">Location</legend>
+      <legend className="field-label">{tx("agent.location")}</legend>
       <div className="btn-row">
         <button type="button" className="secondary-btn small" onClick={useGps}>
-          📍 Meri abhi ki location (wahan khade hokar)
+          {tx("agent.meriAbhiKiLocation")}
         </button>
         <select
-          aria-label="Gaon ki location lo"
+          aria-label={tx("agent.gaonKiLocationLo")}
           value=""
           onChange={(e) => {
             const v = villages.data?.data.find((x) => x._id === e.target.value);
@@ -100,7 +101,7 @@ function LocationPicker({ value, onChange, error, onVillage }) {
             onVillage?.(v._id);
           }}
         >
-          <option value="">…ya gaon ki location lo</option>
+          <option value="">{tx("agent.yaGaonKiLocation")}</option>
           {villages.data?.data.map((v) => (
             <option key={v._id} value={v._id}>
               {v.name} ({v.block})
@@ -109,16 +110,16 @@ function LocationPicker({ value, onChange, error, onVillage }) {
         </select>
       </div>
       <div className="two">
-        <Field label="Latitude" hint="Google Maps pe jagah pe long-press karke milega" error={error}>
+        <Field label={tx("agent.latitude")} hint={tx("agent.googleMapsPeJagah")} error={error}>
           <input inputMode="decimal" value={value.lat} onChange={(e) => onChange({ ...value, lat: e.target.value })} placeholder="26.1120" />
         </Field>
-        <Field label="Longitude">
+        <Field label={tx("agent.longitude")}>
           <input inputMode="decimal" value={value.lng} onChange={(e) => onChange({ ...value, lng: e.target.value })} placeholder="84.5000" />
         </Field>
       </div>
       {valid && (
         <a className="link-btn" target="_blank" rel="noopener noreferrer" href={`https://www.openstreetmap.org/?mlat=${value.lat}&mlon=${value.lng}#map=16/${value.lat}/${value.lng}`}>
-          Map pe check karein ↗
+          {tx("agent.mapPeCheckKarein")}
         </a>
       )}
       <ErrorMsg msg={gpsErr} />
@@ -135,9 +136,9 @@ function VillagePicker({ value, onChange }) {
   const toggle = (id) => onChange(value.includes(id) ? value.filter((x) => x !== id) : [...value, id]);
   return (
     <fieldset className="location">
-      <legend className="field-label">Kin gaon ke mareezon ko dikhe? ({value.length} chune)</legend>
-      <p className="muted small">Sirf inhi gaon ke mareez ko yeh dikhega, baaki kisi gaon mein nahi. Koi gaon nahi chuna toh location ke paas wale gaon mein dikhega.</p>
-      {all.length > 8 && <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Gaon dhoondhein…" aria-label="Gaon dhoondhein" />}
+      <legend className="field-label">{tx("agent.kinGaonKeMareezon")}{value.length} {tx("agent.chune")}</legend>
+      <p className="muted small">{tx("agent.sirfInhiGaonKe")}</p>
+      {all.length > 8 && <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={tx("agent.gaonDhoondhein")} aria-label={tx("agent.gaonDhoondhein2")} />}
       <div className="pill-row">
         {shown.map((v) => (
           <button type="button" key={v._id} className={`pill ${value.includes(v._id) ? "on" : ""}`} aria-pressed={value.includes(v._id)} onClick={() => toggle(v._id)}>
@@ -145,7 +146,7 @@ function VillagePicker({ value, onChange }) {
             {v.name}
           </button>
         ))}
-        {!villages.isLoading && all.length === 0 && <span className="muted small">Pehle "Gaon jodein" se gaon jodein.</span>}
+        {!villages.isLoading && all.length === 0 && <span className="muted small">{tx("agent.pehleGaonJodeinSe")}</span>}
       </div>
     </fieldset>
   );
@@ -166,13 +167,13 @@ function AddVillage() {
     setOk("");
     setErr("");
     const v = {};
-    if (f.name.trim().length < 2) v.name = "Gaon ka naam likhein";
-    if (!loc.lat || !loc.lng) v.lat = "Location daalein";
+    if (f.name.trim().length < 2) v.name = tx("agent.gaonKaNaamLikhein");
+    if (!loc.lat || !loc.lng) v.lat = tx("agent.locationDaalein");
     setErrs(v);
     if (Object.keys(v).length) return;
     try {
       const r = await post("/agent/villages", { ...f, lat: Number(loc.lat), lng: Number(loc.lng) });
-      setOk(`${r.name} jud gaya ✓`);
+      setOk(tx("agent.judGaya", { name: r.name }));
       setF({ ...f, name: "" });
       setLoc({ lat: "", lng: "" });
       qc.invalidateQueries({ queryKey: ["villages"] });
@@ -183,22 +184,22 @@ function AddVillage() {
   }
   return (
     <form className="card form-card" onSubmit={submit} noValidate>
-      <h2>Naya gaon jodein</h2>
+      <h2>{tx("agent.nayaGaonJodein")}</h2>
       <div className="three">
-        <Field label="Gaon ka naam" error={errs.name}>
+        <Field label={tx("agent.gaonKaNaam")} error={errs.name}>
           <input value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} />
         </Field>
-        <Field label="Block" error={errs.block}>
+        <Field label={tx("agent.block")} error={errs.block}>
           <input value={f.block} onChange={(e) => setF({ ...f, block: e.target.value })} />
         </Field>
-        <Field label="District">
+        <Field label={tx("agent.district")}>
           <input value={f.district} onChange={(e) => setF({ ...f, district: e.target.value })} />
         </Field>
       </div>
       <LocationPicker value={loc} onChange={setLoc} error={errs.lat} />
       <ErrorMsg msg={err} />
       <Ok msg={ok} />
-      <button className="primary-btn">Gaon jodein</button>
+      <button className="primary-btn">{tx("agent.gaonJodein")}</button>
     </form>
   );
 }
@@ -233,9 +234,9 @@ function AddLab({ onDone }) {
   async function submit(e) {
     e.preventDefault();
     const v = {};
-    if (f.name.trim().length < 2) v.name = "Lab ka naam likhein";
-    if (f.phone && !/^[6-9]\d{9}$/.test(f.phone)) v.phone = "10 ank ka mobile";
-    if (!loc.lat || !loc.lng) v.lat = "Lab ki location daalein";
+    if (f.name.trim().length < 2) v.name = tx("agent.labKaNaamLikhein");
+    if (f.phone && !/^[6-9]\d{9}$/.test(f.phone)) v.phone = tx("agent.10AnkKaMobile");
+    if (!loc.lat || !loc.lng) v.lat = tx("agent.labKiLocationDaalein");
     setErrs(v);
     if (Object.keys(v).length) return;
     setBusy(true);
@@ -270,66 +271,66 @@ function AddLab({ onDone }) {
 
   return (
     <form className="card form-card" onSubmit={submit} noValidate>
-      <h2>Naya lab jodein</h2>
+      <h2>{tx("agent.nayaLabJodein")}</h2>
       <div className="two">
-        <Field label="Lab ka naam" error={errs.name}>
-          <input value={f.name} onChange={set("name")} placeholder="Maa Durga Pathology" />
+        <Field label={tx("agent.labKaNaam")} error={errs.name}>
+          <input value={f.name} onChange={set("name")} placeholder={tx("agent.maaDurgaPathology")} />
         </Field>
-        <Field label="Phone" error={errs.phone}>
+        <Field label={tx("agent.phone")} error={errs.phone}>
           <input inputMode="numeric" maxLength={10} value={f.phone} onChange={set("phone")} />
         </Field>
       </div>
       <div className="two">
-        <Field label="Pata">
-          <input value={f.address} onChange={set("address")} placeholder="Main Bazaar, Maharajganj" />
+        <Field label={tx("agent.pata")}>
+          <input value={f.address} onChange={set("address")} placeholder={tx("agent.mainBazaarMaharajganj")} />
         </Field>
-        <Field label="Block">
+        <Field label={tx("agent.block")}>
           <input value={f.block} onChange={set("block")} />
         </Field>
       </div>
       <LocationPicker value={loc} onChange={setLoc} error={errs.lat} onVillage={addVillage(setVillages)} />
       <VillagePicker value={villages} onChange={setVillages} />
-      <h3>Pathologist (report sign karne wale)</h3>
+      <h3>{tx("agent.pathologistReportSignKarne")}</h3>
       <div className="three">
-        <Field label="Naam">
-          <input value={f.pathName} onChange={set("pathName")} placeholder="Dr. ____" />
+        <Field label={tx("agent.naam")}>
+          <input value={f.pathName} onChange={set("pathName")} placeholder={tx("agent.dr")} />
         </Field>
-        <Field label="Qualification">
+        <Field label={tx("agent.qualification")}>
           <input value={f.pathQual} onChange={set("pathQual")} />
         </Field>
-        <Field label="Registration no.">
+        <Field label={tx("agent.registrationNo")}>
           <input value={f.pathReg} onChange={set("pathReg")} />
         </Field>
       </div>
-      <Field label="Lab licence no.">
+      <Field label={tx("agent.labLicenceNo")}>
         <input value={f.licenceNo} onChange={set("licenceNo")} />
       </Field>
-      <h3>Seva aur fees</h3>
+      <h3>{tx("agent.sevaAurFees")}</h3>
       <div className="three">
-        <Field label="Kitne km tak sample" error={errs.serviceRadiusKm}>
+        <Field label={tx("agent.kitneKmTakSample")} error={errs.serviceRadiusKm}>
           <input inputMode="decimal" value={f.serviceRadiusKm} onChange={set("serviceRadiusKm")} />
         </Field>
-        <Field label="Collection fee ₹" error={errs.collectionFee}>
+        <Field label={tx("agent.collectionFee")} error={errs.collectionFee}>
           <input inputMode="numeric" value={f.collectionFee} onChange={set("collectionFee")} />
         </Field>
-        <Field label="Iske upar collection free ₹" error={errs.freeCollectionAbove}>
+        <Field label={tx("agent.iskeUparCollectionFree")} error={errs.freeCollectionAbove}>
           <input inputMode="numeric" value={f.freeCollectionAbove} onChange={set("freeCollectionAbove")} />
         </Field>
       </div>
       <div className="two">
-        <Field label="Kam se kam order ₹" error={errs.minOrderValue}>
+        <Field label={tx("agent.kamSeKamOrder")} error={errs.minOrderValue}>
           <input inputMode="numeric" value={f.minOrderValue} onChange={set("minOrderValue")} />
         </Field>
-        <Field label="Commission % (walk-in rate pe humein chhoot)" error={errs.commissionPercent}>
+        <Field label={tx("agent.commissionWalkInRate")} error={errs.commissionPercent}>
           <input inputMode="decimal" value={f.commissionPercent} onChange={set("commissionPercent")} />
         </Field>
       </div>
-      <Field label="Test aur walk-in rate (har line: Naam = Rate, ya CSV: naam,rate)" hint="Baad mein bhi jod/badal sakte hain">
+      <Field label={tx("agent.testAurWalkIn")} hint={tx("agent.baadMeinBhiJod")}>
         <textarea rows={10} value={f.tests} onChange={set("tests")} />
       </Field>
       <ErrorMsg msg={err} />
       <button className="primary-btn" disabled={busy}>
-        {busy ? "Jod rahe hain…" : "Lab jodein"}
+        {busy ? tx("agent.jodRaheHain") : tx("agent.labJodein")}
       </button>
     </form>
   );
@@ -345,7 +346,7 @@ function LabDetail({ id, onBack }) {
   return (
     <section>
       <button className="back" onClick={onBack}>
-        ← Peeche
+        {tx("agent.peeche")}
       </button>
       <QueryState query={q}>
         {(d) => (
@@ -380,7 +381,7 @@ function LabSettings({ lab, onSaved }) {
     setOk("");
     try {
       await patch(`/agent/labs/${lab._id}`, body);
-      setOk("Save ho gaya ✓");
+      setOk(tx("agent.saveHoGaya"));
       onSaved();
     } catch (e) {
       setErr(errorMessage(e));
@@ -390,33 +391,33 @@ function LabSettings({ lab, onSaved }) {
     <div className="card form-card">
       <div className="row-between">
         <h2>{lab.name}</h2>
-        <Badge status={lab.status} label={lab.status === "active" ? "Chalu" : "Band"} />
+        <Badge status={lab.status} label={lab.status === "active" ? tx("agent.chalu") : tx("agent.band")} />
       </div>
       <p className="muted">
-        {lab.pathologist?.name} {lab.pathologist?.qualification ? `(${lab.pathologist.qualification})` : ""} · Licence {lab.licenceNo || "—"}
+        {lab.pathologist?.name} {lab.pathologist?.qualification ? `(${lab.pathologist.qualification})` : ""} {tx("agent.licence")} {lab.licenceNo || "—"}
       </p>
       <div className="two">
-        <Field label="Phone">
+        <Field label={tx("agent.phone")}>
           <input value={f.phone} onChange={set("phone")} />
         </Field>
-        <Field label="Pata">
+        <Field label={tx("agent.pata")}>
           <input value={f.address} onChange={set("address")} />
         </Field>
       </div>
       <div className="three">
-        <Field label="Km tak sample">
+        <Field label={tx("agent.kmTakSample")}>
           <input value={f.serviceRadiusKm} onChange={set("serviceRadiusKm")} />
         </Field>
-        <Field label="Collection fee ₹">
+        <Field label={tx("agent.collectionFee")}>
           <input value={f.collectionFee} onChange={set("collectionFee")} />
         </Field>
-        <Field label="Iske upar free ₹">
+        <Field label={tx("agent.iskeUparFree")}>
           <input value={f.freeCollectionAbove} onChange={set("freeCollectionAbove")} />
         </Field>
-        <Field label="Kam se kam order ₹">
+        <Field label={tx("agent.kamSeKamOrder")}>
           <input value={f.minOrderValue} onChange={set("minOrderValue")} />
         </Field>
-        <Field label="Commission %">
+        <Field label={tx("agent.commission")}>
           <input value={f.commissionPercent} onChange={set("commissionPercent")} />
         </Field>
       </div>
@@ -439,11 +440,11 @@ function LabSettings({ lab, onSaved }) {
             })
           }
         >
-          Save karein
+          {tx("agent.saveKarein")}
         </button>
         {isAdmin && (
           <button className="secondary-btn small" onClick={() => save({ status: lab.status === "active" ? "disabled" : "active" })}>
-            {lab.status === "active" ? "Lab band karein" : "Lab chalu karein"}
+            {lab.status === "active" ? tx("agent.labBandKarein") : tx("agent.labChaluKarein")}
           </button>
         )}
       </div>
@@ -473,34 +474,34 @@ function StaffSection({ lab, staff, onSaved }) {
   }
   return (
     <div className="card form-card">
-      <h2>Lab staff login</h2>
+      <h2>{tx("agent.labStaffLogin")}</h2>
       {staff.length === 0 ? (
-        <p className="muted">Abhi koi login nahi bana.</p>
+        <p className="muted">{tx("agent.abhiKoiLoginNahi")}</p>
       ) : (
         <ul className="plain-list">
           {staff.map((s) => (
             <li key={s._id}>
-              <strong>{s.name}</strong> · {s.email} <Badge status={s.status} label={s.status === "active" ? "Chalu" : "Band"} />{" "}
-              {s.mustChangePassword && <span className="chip">Pehla login baaki</span>}
-              {s.lastLoginAt && <span className="muted small"> · aakhri login {prettyDateTime(s.lastLoginAt)}</span>}
+              <strong>{s.name}</strong> · {s.email} <Badge status={s.status} label={s.status === "active" ? tx("agent.chalu") : tx("agent.band")} />{" "}
+              {s.mustChangePassword && <span className="chip">{tx("agent.pehlaLoginBaaki")}</span>}
+              {s.lastLoginAt && <span className="muted small"> {tx("agent.aakhriLogin")} {prettyDateTime(s.lastLoginAt)}</span>}
             </li>
           ))}
         </ul>
       )}
       <form onSubmit={submit} noValidate>
         <div className="three">
-          <Field label="Naam" error={errs.name}>
+          <Field label={tx("agent.naam")} error={errs.name}>
             <input value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} />
           </Field>
-          <Field label="Email (login ID)" error={errs.email}>
+          <Field label={tx("agent.emailLoginId")} error={errs.email}>
             <input type="email" value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} />
           </Field>
-          <Field label="Phone (zaroori nahi)" error={errs.phone}>
+          <Field label={tx("agent.phoneZarooriNahi")} error={errs.phone}>
             <input inputMode="numeric" maxLength={10} value={f.phone} onChange={(e) => setF({ ...f, phone: e.target.value })} />
           </Field>
         </div>
         <ErrorMsg msg={err} />
-        <button className="primary-btn small">Login banayein</button>
+        <button className="primary-btn small">{tx("agent.loginBanayein")}</button>
       </form>
       <TempPassword email={created?.email} password={created?.password} />
     </div>
@@ -524,14 +525,14 @@ function TestsSection({ lab, tests, onSaved }) {
   }
   return (
     <div className="card form-card">
-      <h2>Test rate list ({tests.length})</h2>
-      <Field label="Naye test jodein ya rate badlein (Naam = Rate, ya CSV)" hint="Same naam wala test update ho jaayega">
-        <textarea rows={5} value={text} onChange={(e) => setText(e.target.value)} placeholder={"CBC = 400\nTSH = 200"} />
+      <h2>{tx("agent.testRateList")}{tests.length})</h2>
+      <Field label={tx("agent.nayeTestJodeinYa")} hint={tx("agent.sameNaamWalaTest")}>
+        <textarea rows={5} value={text} onChange={(e) => setText(e.target.value)} placeholder={tx("agent.cbc400Tsh200")} />
       </Field>
       <ErrorMsg msg={err} />
       {result && (
         <div className="ok">
-          {result.created} naye, {result.updated} update.
+          {result.created} {tx("agent.naye")} {result.updated} {tx("agent.update")}
           {result.errors.length > 0 && (
             <ul className="small">
               {result.errors.map((e, i) => (
@@ -544,17 +545,17 @@ function TestsSection({ lab, tests, onSaved }) {
         </div>
       )}
       <button className="primary-btn small" disabled={!text.trim()} onClick={importTests}>
-        Import karein
+        {tx("agent.importKarein")}
       </button>
       <div className="table-wrap">
         <table className="table">
           <thead>
             <tr>
-              <th>Test</th>
-              <th>Walk-in</th>
-              <th>Patient rate</th>
+              <th>{tx("agent.test")}</th>
+              <th>{tx("agent.walkIn")}</th>
+              <th>{tx("agent.patientRate")}</th>
               <th>B2B</th>
-              <th>Status</th>
+              <th>{tx("agent.status")}</th>
             </tr>
           </thead>
           <tbody>
@@ -564,7 +565,7 @@ function TestsSection({ lab, tests, onSaved }) {
                 <td>{rs(t.walkInPrice)}</td>
                 <td>{rs(t.listingPrice)}</td>
                 <td>{rs(t.b2bPrice)}</td>
-                <td>{t.active ? "Chalu" : "Band"}</td>
+                <td>{t.active ? tx("agent.chalu") : tx("agent.band")}</td>
               </tr>
             ))}
           </tbody>
@@ -581,7 +582,7 @@ const DOC_BLANK = {
   degree: "MBBS",
   registrationNo: "",
   specialty: "General Physician",
-  specialtyHi: "Aam bimari ke doctor",
+  specialtyHi: "सामान्य रोग चिकित्सक",
   clinicName: "",
   clinicAddress: "",
   block: "Maharajganj",
@@ -603,11 +604,11 @@ function AddDoctor() {
   async function submit(e) {
     e.preventDefault();
     const v = {};
-    if (f.name.trim().length < 2) v.name = "Naam likhein";
-    if (!/^\S+@\S+\.\S+$/.test(f.email)) v.email = "Sahi email likhein (yahi login ID hogi)";
-    if (f.phone && !/^[6-9]\d{9}$/.test(f.phone)) v.phone = "10 ank ka mobile";
-    if (!loc.lat || !loc.lng) v.lat = "Clinic ki location daalein";
-    if (schedule.some((s) => s.start >= s.end)) v.schedule = "Har din shuru ka samay khatam se pehle ho";
+    if (f.name.trim().length < 2) v.name = tx("agent.naamLikhein");
+    if (!/^\S+@\S+\.\S+$/.test(f.email)) v.email = tx("agent.sahiEmailLikheinYahi");
+    if (f.phone && !/^[6-9]\d{9}$/.test(f.phone)) v.phone = tx("agent.10AnkKaMobile");
+    if (!loc.lat || !loc.lng) v.lat = tx("agent.clinicKiLocationDaalein");
+    if (schedule.some((s) => s.start >= s.end)) v.schedule = tx("agent.harDinShuruKa");
     setErrs(v);
     if (Object.keys(v).length) return;
     setBusy(true);
@@ -636,57 +637,57 @@ function AddDoctor() {
 
   return (
     <form className="card form-card" onSubmit={submit} noValidate>
-      <h2>Naya doctor jodein</h2>
-      <p className="muted">Doctor khud register nahi kar sakte. Aap jo email daalenge wahi unki login ID banegi aur temporary password email ho jaayega.</p>
+      <h2>{tx("agent.nayaDoctorJodein")}</h2>
+      <p className="muted">{tx("agent.doctorKhudRegisterNahi")}</p>
       {created && <TempPassword email={created.email} password={created.password} />}
       <div className="two">
-        <Field label="Doctor ka naam" error={errs.name}>
-          <input value={f.name} onChange={set("name")} placeholder="Dr. ____" />
+        <Field label={tx("agent.doctorKaNaam")} error={errs.name}>
+          <input value={f.name} onChange={set("name")} placeholder={tx("agent.dr")} />
         </Field>
-        <Field label="Email (login ID)" error={errs.email}>
+        <Field label={tx("agent.emailLoginId")} error={errs.email}>
           <input type="email" value={f.email} onChange={set("email")} />
         </Field>
       </div>
       <div className="three">
-        <Field label="Phone" error={errs.phone}>
+        <Field label={tx("agent.phone")} error={errs.phone}>
           <input inputMode="numeric" maxLength={10} value={f.phone} onChange={set("phone")} />
         </Field>
-        <Field label="Degree">
+        <Field label={tx("agent.degree")}>
           <input value={f.degree} onChange={set("degree")} />
         </Field>
-        <Field label="Registration no.">
+        <Field label={tx("agent.registrationNo")}>
           <input value={f.registrationNo} onChange={set("registrationNo")} />
         </Field>
       </div>
       <div className="two">
-        <Field label="Specialty (English)" error={errs.specialty}>
+        <Field label={tx("agent.specialtyEnglish")} error={errs.specialty}>
           <input value={f.specialty} onChange={set("specialty")} />
         </Field>
-        <Field label="Specialty (gaon ki bhasha mein)">
+        <Field label={tx("agent.specialtyGaonKiBhasha")}>
           <input value={f.specialtyHi} onChange={set("specialtyHi")} />
         </Field>
       </div>
       <div className="two">
-        <Field label="Clinic ka naam">
+        <Field label={tx("agent.clinicKaNaam")}>
           <input value={f.clinicName} onChange={set("clinicName")} />
         </Field>
-        <Field label="Clinic ka pata">
+        <Field label={tx("agent.clinicKaPata")}>
           <input value={f.clinicAddress} onChange={set("clinicAddress")} />
         </Field>
       </div>
       <LocationPicker value={loc} onChange={setLoc} error={errs.lat} onVillage={addVillage(setVillages)} />
       <VillagePicker value={villages} onChange={setVillages} />
       <div className="field">
-        <span className="field-label">Kab baithte hain</span>
+        <span className="field-label">{tx("agent.kabBaithteHain")}</span>
         <ScheduleRows value={schedule} onChange={setSchedule} />
         {errs.schedule && <span className="field-error">{errs.schedule}</span>}
       </div>
-      <Field label="Fees ₹">
+      <Field label={tx("agent.fees")}>
         <input inputMode="numeric" value={f.fee} onChange={set("fee")} />
       </Field>
       <ErrorMsg msg={err} />
       <button className="primary-btn" disabled={busy}>
-        {busy ? "Jod rahe hain…" : "Doctor jodein aur login banayein"}
+        {busy ? tx("agent.jodRaheHain") : tx("agent.doctorJodeinAurLogin")}
       </button>
     </form>
   );
@@ -711,8 +712,8 @@ function Onboarded({ onOpenLab }) {
     <>
       <div className="pill-row">
         {[
-          ["lab", "Labs"],
-          ["doctor", "Doctors"],
+          ["lab", tx("agent.labs")],
+          ["doctor", tx("agent.doctors")],
         ].map(([k, l]) => (
           <button
             key={k}
@@ -727,8 +728,8 @@ function Onboarded({ onOpenLab }) {
         ))}
       </div>
       <ErrorMsg msg={err} />
-      {!isAdmin && <p className="muted small">Lab ya doctor ko band ya delete sirf admin kar sakta hai.</p>}
-      <QueryState query={q} empty={type === "lab" ? "Abhi koi lab nahi joda." : "Abhi koi doctor nahi joda."}>
+      {!isAdmin && <p className="muted small">{tx("agent.labYaDoctorKo")}</p>}
+      <QueryState query={q} empty={type === "lab" ? tx("agent.abhiKoiLabNahi") : tx("agent.abhiKoiDoctorNahi")}>
         {(d) => (
           <>
             <div className="grid">
@@ -737,32 +738,32 @@ function Onboarded({ onOpenLab }) {
                   <div key={x._id} className={`card ${x.status === "active" ? "" : "out"}`}>
                     <div className="row-between">
                       <h3>{x.name}</h3>
-                      <Badge status={x.status} label={x.status === "active" ? "Chalu" : "Band"} />
+                      <Badge status={x.status} label={x.status === "active" ? tx("agent.chalu") : tx("agent.band")} />
                     </div>
                     <p className="muted">
-                      {x.testCount} test · {x.staffCount} login · {x.serviceRadiusKm} km tak
+                      {x.testCount} {tx("agent.test2")} {x.staffCount} {tx("agent.login")} {x.serviceRadiusKm} {tx("agent.kmTak")}
                     </p>
-                    <p className="muted small">Joda: {prettyDate(x.createdAt?.slice(0, 10))}</p>
+                    <p className="muted small">{tx("agent.joda")} {prettyDate(x.createdAt?.slice(0, 10))}</p>
                     <button className="secondary-btn small" onClick={() => onOpenLab(x._id)}>
-                      Kholein (test, login, settings)
+                      {tx("agent.kholeinTestLoginSettings")}
                     </button>
                   </div>
                 ) : (
                   <div key={x._id} className={`card ${x.status === "active" ? "" : "out"}`}>
                     <div className="row-between">
                       <h3>{x.name}</h3>
-                      <Badge status={x.status} label={x.status === "active" ? "Chalu" : "Band"} />
+                      <Badge status={x.status} label={x.status === "active" ? tx("agent.chalu") : tx("agent.band")} />
                     </div>
                     <p className="muted">
                       {x.specialty} · {rs(x.fee)} · {x.schedule.map((s) => s.day).join(", ")}
                     </p>
                     <p className="muted small">
-                      Login: {x.user?.email} {x.user?.mustChangePassword ? "· pehla login baaki" : x.user?.lastLoginAt ? `· aakhri login ${prettyDateTime(x.user.lastLoginAt)}` : ""}
+                      {tx("agent.login2")} {x.user?.email} {x.user?.mustChangePassword ? tx("agent.pehlaLoginBaaki2") : x.user?.lastLoginAt ? tx("agent.aakhriLogin2", { v1: prettyDateTime(x.user.lastLoginAt) }) : ""}
                     </p>
                     <DoctorVillages doctor={x} onSaved={() => qc.invalidateQueries({ queryKey: ["onboarded"] })} />
                     {isAdmin && (
                       <button className="secondary-btn small" onClick={() => toggleDoctor(x)}>
-                        {x.status === "active" ? "Band karein" : "Chalu karein"}
+                        {x.status === "active" ? tx("agent.bandKarein") : tx("agent.chaluKarein")}
                       </button>
                     )}
                   </div>
@@ -785,7 +786,7 @@ function DoctorVillages({ doctor, onSaved }) {
   if (!open)
     return (
       <button className="secondary-btn small" onClick={() => setOpen(true)}>
-        Gaon chunein ({(doctor.villages || []).length})
+        {tx("agent.gaonChunein")}{(doctor.villages || []).length})
       </button>
     );
   async function save() {
@@ -793,7 +794,7 @@ function DoctorVillages({ doctor, onSaved }) {
     setOk("");
     try {
       await patch(`/agent/doctors/${doctor._id}`, { villages });
-      setOk("Save ho gaya ✓");
+      setOk(tx("agent.saveHoGaya"));
       onSaved();
     } catch (e) {
       setErr(errorMessage(e));
@@ -806,10 +807,10 @@ function DoctorVillages({ doctor, onSaved }) {
       <Ok msg={ok} />
       <div className="btn-row">
         <button className="primary-btn small" onClick={save}>
-          Gaon save karein
+          {tx("agent.gaonSaveKarein")}
         </button>
         <button className="secondary-btn small" onClick={() => setOpen(false)}>
-          Band karein
+          {tx("agent.bandKarein")}
         </button>
       </div>
     </>
@@ -822,26 +823,26 @@ function AgentBookings() {
   const q = useQuery({ queryKey: ["agentBookings", page, status], queryFn: () => get("/agent/bookings", { page, status: status || undefined }) });
   return (
     <>
-      <select value={status} onChange={(e) => setStatus(e.target.value)} aria-label="Status filter">
-        <option value="">Sabhi status</option>
+      <select value={status} onChange={(e) => setStatus(e.target.value)} aria-label={tx("agent.statusFilter")}>
+        <option value="">{tx("agent.sabhiStatus")}</option>
         {["requested", "confirmed", "collected", "report_ready", "cancelled"].map((s) => (
           <option key={s}>{s}</option>
         ))}
       </select>
-      <QueryState query={q} empty="Aapke labs mein abhi koi booking nahi.">
+      <QueryState query={q} empty={tx("agent.aapkeLabsMeinAbhi")}>
         {(d) => (
           <>
             <div className="table-wrap">
               <table className="table">
                 <thead>
                   <tr>
-                    <th>Code</th>
-                    <th>Mareez</th>
-                    <th>Gaon</th>
-                    <th>Lab</th>
-                    <th>Test</th>
-                    <th>Din</th>
-                    <th>Status</th>
+                    <th>{tx("agent.code")}</th>
+                    <th>{tx("agent.mareez")}</th>
+                    <th>{tx("agent.gaon")}</th>
+                    <th>{tx("agent.lab")}</th>
+                    <th>{tx("agent.test")}</th>
+                    <th>{tx("agent.din")}</th>
+                    <th>{tx("agent.status")}</th>
                   </tr>
                 </thead>
                 <tbody>

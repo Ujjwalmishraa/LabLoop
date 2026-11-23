@@ -142,15 +142,15 @@ test("3. agent creates a doctor; doctor logs in, changes password, refers a test
   const agent = await newPage(browser);
   await login(agent, "agent@nidaansetu.test", PW, "/login/agent");
   await expect(agent).toHaveURL(/\/agent/);
-  await agent.locator(".side-nav").getByRole("button", { name: "Doctor jodein" }).click();
-  await agent.getByLabel("Doctor ka naam").fill("Dr. Naya Doctor");
+  await agent.locator(".side-nav").getByRole("button", { name: "Add doctor" }).click();
+  await agent.getByLabel("Doctor's name").fill("Dr. Naya Doctor");
   await agent.getByLabel("Email (login ID)").fill("naya.doctor@example.in");
-  await agent.getByLabel("Clinic ka naam").fill("Naya Clinic");
+  await agent.getByLabel("Clinic name").fill("Naya Clinic");
   await agent.getByLabel("Latitude").fill("26.125");
   await agent.getByLabel("Longitude").fill("84.505");
   // Sits every day so a token is always available
   await agent.getByRole("checkbox", { name: "Sunday" }).check();
-  await agent.getByRole("button", { name: "Doctor jodein aur login banayein" }).click();
+  await agent.getByRole("button", { name: "Add doctor and create login" }).click();
   const temp = (await agent.locator(".temp-pass .big-code").innerText()).trim();
   expect(temp.length).toBeGreaterThanOrEqual(8);
 

@@ -6,20 +6,21 @@ import { get, post, patch, del, errorMessage, fieldErrors } from "../../api/clie
 import { PanelShell, Badge, ErrorMsg, Field, Pager, QueryState, Stat, TempPassword } from "../../components/ui.jsx";
 import { rs, prettyDate, prettyDateTime, roleLabel, ROLES } from "../../utils.js";
 import { useAuth } from "../../auth/AuthContext.jsx";
+import { t as tx, locale } from "../../i18n/I18nContext.jsx";
 
 const TABS = [
-  { key: "dash", label: "Dashboard", icon: "chart" },
-  { key: "finance", label: "Hisaab & commission", icon: "rupee" },
-  { key: "rules", label: "Rules & rates", icon: "shield" },
-  { key: "agents", label: "Agents", icon: "briefcase" },
-  { key: "users", label: "Users", icon: "users" },
-  { key: "labs", label: "Labs", icon: "flask" },
-  { key: "doctors", label: "Doctors", icon: "steth" },
-  { key: "villages", label: "Gaon", icon: "map" },
-  { key: "bookings", label: "Bookings", icon: "file" },
-  { key: "appts", label: "Appointments", icon: "calendar" },
-  { key: "settle", label: "Settlements", icon: "wallet" },
-  { key: "audit", label: "Audit log", icon: "log" },
+  { key: "dash", get label() { return tx("admin.dashboard"); }, icon: "chart" },
+  { key: "finance", get label() { return tx("admin.hisaabCommission"); }, icon: "rupee" },
+  { key: "rules", get label() { return tx("admin.rulesRates"); }, icon: "shield" },
+  { key: "agents", get label() { return tx("admin.agents"); }, icon: "briefcase" },
+  { key: "users", get label() { return tx("admin.users"); }, icon: "users" },
+  { key: "labs", get label() { return tx("admin.labs"); }, icon: "flask" },
+  { key: "doctors", get label() { return tx("admin.doctors"); }, icon: "steth" },
+  { key: "villages", get label() { return tx("admin.gaon"); }, icon: "map" },
+  { key: "bookings", get label() { return tx("admin.bookings"); }, icon: "file" },
+  { key: "appts", get label() { return tx("admin.appointments"); }, icon: "calendar" },
+  { key: "settle", get label() { return tx("admin.settlements"); }, icon: "wallet" },
+  { key: "audit", get label() { return tx("admin.auditLog"); }, icon: "log" },
 ];
 
 export default function AdminPanel() {
@@ -33,7 +34,7 @@ export default function AdminPanel() {
       actions={
         <Link className="primary-btn small" to="/agent">
           <Icon name="plus" size={18} />
-          Lab/doctor jodein
+          {tx("admin.labDoctorJodein")}
         </Link>
       }
     >
@@ -92,13 +93,13 @@ function Hero({ s, days }) {
   const { user } = useAuth();
   const first = (user?.name || "Admin").split(/\s+/)[0];
   const hour = Number(new Date().toLocaleString("en-IN", { hour: "numeric", hour12: false, timeZone: "Asia/Kolkata" }));
-  const greet = hour < 12 ? "Suprabhat" : hour < 17 ? "Namaste" : "Shubh sandhya";
-  const today = new Date().toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long", year: "numeric", timeZone: "Asia/Kolkata" });
+  const greet = hour < 12 ? tx("admin.suprabhat") : hour < 17 ? tx("admin.namaste") : tx("admin.shubhSandhya");
+  const today = new Date().toLocaleDateString(locale(), { weekday: "long", day: "numeric", month: "long", year: "numeric", timeZone: "Asia/Kolkata" });
   const tiles = [
-    { icon: "file", label: "Bookings", value: s.bookings, spark: "bookings" },
-    { icon: "rupee", label: "Kul kaarobaar (GMV)", value: rs(s.gmv), spark: "gmv" },
-    { icon: "sparkle", label: "Platform ki kamai", value: rs(s.platformMargin) },
-    { icon: "users", label: "Mareez judey", value: s.counts.patients },
+    { icon: "file", label: tx("admin.bookings"), value: s.bookings, spark: "bookings" },
+    { icon: "rupee", label: tx("admin.kulKaarobaarGmv"), value: rs(s.gmv), spark: "gmv" },
+    { icon: "sparkle", label: tx("admin.platformKiKamai"), value: rs(s.platformMargin) },
+    { icon: "users", label: tx("admin.mareezJudey"), value: s.counts.patients },
   ];
   return (
     <section className="hero-banner">
@@ -107,17 +108,17 @@ function Hero({ s, days }) {
       <div className="hero-top">
         <div>
           <span className="hero-live">
-            <span className="pulse" aria-hidden="true" /> Live · {today}
+            <span className="pulse" aria-hidden="true" /> {tx("admin.live")} {today}
           </span>
           <h2>
             {greet}, {first} 👋
           </h2>
-          <p>Pichhle {days} din mein LabLoop ka poora haal, ek nazar mein.</p>
+          <p>{tx("admin.pichhle")} {days} {tx("admin.dinMeinLabloopKa")}</p>
         </div>
         <div className="hero-net">
-          <span>Network</span>
+          <span>{tx("admin.network")}</span>
           <strong>
-            {s.counts.labs} lab · {s.counts.doctors} doctor · {s.counts.villages} gaon
+            {s.counts.labs} {tx("admin.lab")} {s.counts.doctors} {tx("admin.doctor")} {s.counts.villages} {tx("admin.gaon2")}
           </strong>
         </div>
       </div>
@@ -164,7 +165,7 @@ function AreaChart({ data, valueKey, label, format = (v) => v, tone = "teal" }) 
         <strong>{format(total)}</strong>
       </figcaption>
       {total === 0 ? (
-        <p className="chart-empty">Is samay mein abhi koi booking nahi. Pehli booking aate hi graph yahan dikhega.</p>
+        <p className="chart-empty">{tx("admin.isSamayMeinAbhi")}</p>
       ) : (
         <>
           <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" role="img" aria-label={`${label}: ${format(total)}`}>
@@ -228,7 +229,7 @@ function Progress({ title, icon, groups }) {
             {total}
           </text>
           <text x="70" y="88" textAnchor="middle" className="donut-sub">
-            {total ? `${Math.round((done / total) * 100)}% poora` : "kul"}
+            {total ? tx("admin.poora", { v1: Math.round((done / total) * 100) }) : tx("admin.kul")}
           </text>
         </svg>
         <div className="work-legend">
@@ -251,24 +252,24 @@ function WorkStatus({ s }) {
   return (
     <div className="two">
       <Progress
-        title="Lab jaanch"
+        title={tx("admin.labJaanch")}
         icon="flask"
         groups={[
-          { label: "Nayi request (pending)", n: b.requested || 0, tone: "amber" },
-          { label: "Sample lena baaki", n: b.confirmed || 0, tone: "violet" },
-          { label: "Report baaki", n: b.collected || 0, tone: "teal" },
-          { label: "Poora (report di)", n: b.report_ready || 0, tone: "green", main: true },
-          { label: "Cancel", n: b.cancelled || 0, tone: "rose" },
+          { label: tx("admin.nayiRequestPending"), n: b.requested || 0, tone: "amber" },
+          { label: tx("admin.sampleLenaBaaki"), n: b.confirmed || 0, tone: "violet" },
+          { label: tx("admin.reportBaaki"), n: b.collected || 0, tone: "teal" },
+          { label: tx("admin.pooraReportDi"), n: b.report_ready || 0, tone: "green", main: true },
+          { label: tx("admin.cancel"), n: b.cancelled || 0, tone: "rose" },
         ]}
       />
       <Progress
-        title="Doctor ke number"
+        title={tx("admin.doctorKeNumber")}
         icon="steth"
         groups={[
-          { label: "Aana baaki (pending)", n: a.booked || 0, tone: "amber" },
-          { label: "Dekh liya (poora)", n: a.seen || 0, tone: "green", main: true },
-          { label: "Nahi aaye", n: a.no_show || 0, tone: "violet" },
-          { label: "Cancel", n: a.cancelled || 0, tone: "rose" },
+          { label: tx("admin.aanaBaakiPending"), n: a.booked || 0, tone: "amber" },
+          { label: tx("admin.dekhLiyaPoora"), n: a.seen || 0, tone: "green", main: true },
+          { label: tx("admin.nahiAaye"), n: a.no_show || 0, tone: "violet" },
+          { label: tx("admin.cancel"), n: a.cancelled || 0, tone: "rose" },
         ]}
       />
     </div>
@@ -280,10 +281,10 @@ function TopVillages({ list }) {
   return (
     <div className="card rank-card">
       <h3 className="meta strong">
-        <Icon name="map" size={20} /> Sabse aage gaon
+        <Icon name="map" size={20} /> {tx("admin.sabseAageGaon")}
       </h3>
       {list.length === 0 ? (
-        <p className="chart-empty">Abhi data nahi. Bookings aate hi yahan gaon ki ranking dikhegi.</p>
+        <p className="chart-empty">{tx("admin.abhiDataNahiBookings")}</p>
       ) : (
         <ol className="rank-list">
           {list.map((v, i) => (
@@ -293,7 +294,7 @@ function TopVillages({ list }) {
                 <div className="row-between">
                   <strong>{v.name}</strong>
                   <span>
-                    {rs(v.gmv)} <small className="muted">· {v.bookings} booking</small>
+                    {rs(v.gmv)} <small className="muted">· {v.bookings} {tx("admin.booking")}</small>
                   </span>
                 </div>
                 <div className="rank-bar">
@@ -318,26 +319,26 @@ function Dashboard() {
           <Hero s={s} days={days} />
           <MoneyPanel />
           <div className="row-between wrap dash-section-row">
-            <h2 className="dash-section">Kaam-kaaj (pichhle {days} din)</h2>
+            <h2 className="dash-section">{tx("admin.kaamKaajPichhle")} {days} {tx("admin.din")}</h2>
             <div className="pill-row">
               {[7, 30, 90].map((d) => (
                 <button key={d} className={`pill ${days === d ? "on" : ""}`} onClick={() => setDays(d)}>
-                  {d} din
+                  {d} {tx("admin.din2")}
                 </button>
               ))}
             </div>
           </div>
           <div className="stat-row six">
-            <Stat icon="chart" tone="violet" label="Platform margin" value={rs(s.platformMargin)} />
-            <Stat icon="wallet" tone="amber" label="Lab payout" value={rs(s.labPayout)} />
-            <Stat icon="users" tone="rose" label="Repeat rate" value={`${s.repeatRate}%`} />
-            <Stat icon="steth" label="Doctor tokens" value={s.counts.appointments} />
-            <Stat icon="briefcase" tone="amber" label="Agents" value={s.counts.agents} />
-            <Stat icon="wallet" tone="rose" label="Settlement baaki" value={s.counts.pendingSettlements} />
+            <Stat icon="chart" tone="violet" label={tx("admin.platformMargin")} value={rs(s.platformMargin)} />
+            <Stat icon="wallet" tone="amber" label={tx("admin.labPayout")} value={rs(s.labPayout)} />
+            <Stat icon="users" tone="rose" label={tx("admin.repeatRate")} value={`${s.repeatRate}%`} />
+            <Stat icon="steth" label={tx("admin.doctorTokens")} value={s.counts.appointments} />
+            <Stat icon="briefcase" tone="amber" label={tx("admin.agents")} value={s.counts.agents} />
+            <Stat icon="wallet" tone="rose" label={tx("admin.settlementBaaki")} value={s.counts.pendingSettlements} />
           </div>
           <div className="two">
-            <AreaChart data={s.bookingsPerDay} valueKey="bookings" label="Roz ki bookings" tone="teal" />
-            <AreaChart data={s.bookingsPerDay} valueKey="gmv" label="Roz ka kaarobaar (₹)" format={fmtShort} tone="violet" />
+            <AreaChart data={s.bookingsPerDay} valueKey="bookings" label={tx("admin.rozKiBookings")} tone="teal" />
+            <AreaChart data={s.bookingsPerDay} valueKey="gmv" label={tx("admin.rozKaKaarobaar")} format={fmtShort} tone="violet" />
           </div>
           <WorkStatus s={s} />
           <TopVillages list={s.topVillages} />
@@ -354,15 +355,15 @@ const monthStart = () => {
 };
 const todayIst = () => new Date(Date.now() + 5.5 * 3600 * 1000).toISOString().slice(0, 10);
 const daysAgoIst = (n) => new Date(Date.now() - n * 864e5 + 5.5 * 36e5).toISOString().slice(0, 10);
-const MODE_LABEL = { cash: "Cash (lab ne liya)", upi: "UPI (site pe)", online: "Online (site pe)" };
+const MODE_LABEL = { cash: tx("admin.cashLabNeLiya"), upi: tx("admin.upiSitePe"), online: tx("admin.onlineSitePe2") };
 
 // "+₹110 hum denge" / "₹340 lab dega" — the sign alone is too easy to misread.
 function Net({ value, big }) {
-  if (!value) return <span className="muted">Barabar ₹0</span>;
+  if (!value) return <span className="muted">{tx("admin.barabar0")}</span>;
   return (
     <span className={`net ${value > 0 ? "net-pay" : "net-get"} ${big ? "big" : ""}`}>
       {rs(Math.abs(value))}
-      <small>{value > 0 ? "hum lab ko denge" : "lab humein dega"}</small>
+      <small>{value > 0 ? tx("admin.humLabKoDenge") : tx("admin.labHumeinDega")}</small>
     </span>
   );
 }
@@ -381,10 +382,10 @@ function Finance() {
   const [onlyActive, setOnlyActive] = useState(true);
   const q = useQuery({ queryKey: ["finance", range], queryFn: () => get("/admin/finance", range), placeholderData: (p) => p });
   const presets = [
-    ["Is mahine", { from: monthStart(), to: todayIst() }],
-    ["Pichhle 7 din", { from: new Date(Date.now() - 6 * 864e5 + 5.5 * 36e5).toISOString().slice(0, 10), to: todayIst() }],
-    ["Pichhle 30 din", { from: new Date(Date.now() - 29 * 864e5 + 5.5 * 36e5).toISOString().slice(0, 10), to: todayIst() }],
-    ["Is saal", { from: `${todayIst().slice(0, 4)}-01-01`, to: todayIst() }],
+    [tx("admin.isMahine"), { from: monthStart(), to: todayIst() }],
+    [tx("admin.pichhle7Din"), { from: new Date(Date.now() - 6 * 864e5 + 5.5 * 36e5).toISOString().slice(0, 10), to: todayIst() }],
+    [tx("admin.pichhle30Din"), { from: new Date(Date.now() - 29 * 864e5 + 5.5 * 36e5).toISOString().slice(0, 10), to: todayIst() }],
+    [tx("admin.isSaal"), { from: `${todayIst().slice(0, 4)}-01-01`, to: todayIst() }],
   ];
 
   return (
@@ -399,10 +400,10 @@ function Finance() {
         </div>
         <div className="filters">
           <label className="small">
-            Se <input type="date" value={range.from} max={range.to} onChange={(e) => e.target.value && setRange({ ...range, from: e.target.value })} />
+            {tx("admin.se")} <input type="date" value={range.from} max={range.to} onChange={(e) => e.target.value && setRange({ ...range, from: e.target.value })} />
           </label>
           <label className="small">
-            Tak <input type="date" value={range.to} min={range.from} onChange={(e) => e.target.value && setRange({ ...range, to: e.target.value })} />
+            {tx("admin.tak")} <input type="date" value={range.to} min={range.from} onChange={(e) => e.target.value && setRange({ ...range, to: e.target.value })} />
           </label>
         </div>
       </div>
@@ -416,41 +417,41 @@ function Finance() {
 
               <div className="card">
                 <div className="row-between">
-                  <h3>Har lab ka hisaab</h3>
+                  <h3>{tx("admin.harLabKaHisaab")}</h3>
                   <div className="btn-row">
                     <label className="small check">
-                      <input type="checkbox" checked={onlyActive} onChange={(e) => setOnlyActive(e.target.checked)} /> Sirf jinki booking hai
+                      <input type="checkbox" checked={onlyActive} onChange={(e) => setOnlyActive(e.target.checked)} /> {tx("admin.sirfJinkiBookingHai")}
                     </label>
                     <button
                       className="secondary-btn small"
                       onClick={() =>
                         downloadCsv(`hisaab_${d.range.from}_${d.range.to}.csv`, [
-                          ["Lab", "Commission %", "Bookings", "GMV", "Hamara commission", "Lab ki kamai", "Cash (lab ke paas)", "Online (site pe)", "Lab se lena", "Lab ko dena", "Net (+ hum denge / - lab dega)", "Net baaki"],
+                          ["Lab", "Commission %", "Bookings", "GMV", tx("admin.hamaraCommission"), tx("admin.labKiKamai"), tx("admin.cashLabKePaas2"), tx("admin.onlineSitePe2"), tx("admin.labSeLena"), tx("admin.labKoDena"), tx("admin.netHumDengeLab"), tx("admin.netBaaki")],
                           ...d.data.map((r) => [r.lab.name, r.lab.commissionPercent, r.bookings, r.gross, r.commission, r.labEarning, r.cashCollected, r.onlineCollected, r.labOwesUs, r.weOweLab, r.net, r.pendingNet]),
                         ])
                       }
                     >
-                      ⬇ Excel (CSV)
+                      {tx("admin.excelCsv")}
                     </button>
                   </div>
                 </div>
                 {rows.length === 0 ? (
-                  <p className="muted">Is samay mein kisi lab ka sample nahi liya gaya.</p>
+                  <p className="muted">{tx("admin.isSamayMeinKisi")}</p>
                 ) : (
                   <div className="table-wrap">
                     <table className="table finance-table">
                       <thead>
                         <tr>
-                          <th>Lab</th>
-                          <th className="num">Bookings</th>
+                          <th>{tx("admin.lab2")}</th>
+                          <th className="num">{tx("admin.bookings")}</th>
                           <th className="num">GMV</th>
-                          <th className="num">Commission</th>
-                          <th className="num">Lab ki kamai</th>
-                          <th className="num">Cash lab ke paas</th>
-                          <th className="num">Online site pe</th>
-                          <th className="num">Lab se lena</th>
-                          <th className="num">Lab ko dena</th>
-                          <th className="num">Net baaki</th>
+                          <th className="num">{tx("admin.commission")}</th>
+                          <th className="num">{tx("admin.labKiKamai")}</th>
+                          <th className="num">{tx("admin.cashLabKePaas")}</th>
+                          <th className="num">{tx("admin.onlineSitePe")}</th>
+                          <th className="num">{tx("admin.labSeLena")}</th>
+                          <th className="num">{tx("admin.labKoDena")}</th>
+                          <th className="num">{tx("admin.netBaaki")}</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -460,7 +461,7 @@ function Finance() {
                       </tbody>
                       <tfoot>
                         <tr>
-                          <th>Kul</th>
+                          <th>{tx("admin.kul2")}</th>
                           <th className="num">{t.bookings}</th>
                           <th className="num">{rs(t.gross)}</th>
                           <th className="num">{rs(t.commission)}</th>
@@ -478,7 +479,7 @@ function Finance() {
                   </div>
                 )}
                 <p className="muted small">
-                  Sirf woh bookings ginti mein hain jinka sample is samay mein liya gaya (collected / report di). Settlement "Settlements" tab se paid mark karein.
+                  {tx("admin.sirfWohBookingsGinti")}
                 </p>
               </div>
               <TestProfit rows={d.byTest || []} collectionFees={t.collectionFees || 0} range={d.range} />
@@ -499,7 +500,7 @@ function FinanceRow({ r, range, open, onToggle }) {
           <button type="button" className="link-btn" aria-expanded={open}>
             {open ? "▾" : "▸"} {r.lab.name}
           </button>
-          <div className="muted small">{r.lab.commissionPercent}% commission</div>
+          <div className="muted small">{r.lab.commissionPercent}{tx("admin.commission2")}</div>
         </td>
         <td className="num">{r.bookings}</td>
         <td className="num">{rs(r.gross)}</td>
@@ -507,7 +508,7 @@ function FinanceRow({ r, range, open, onToggle }) {
         <td className="num">{rs(r.labEarning)}</td>
         <td className="num">
           {rs(r.cashCollected)}
-          {r.cashBookings > 0 && <div className="muted small">{r.cashBookings} booking</div>}
+          {r.cashBookings > 0 && <div className="muted small">{r.cashBookings} {tx("admin.booking")}</div>}
         </td>
         <td className="num">{rs(r.onlineCollected)}</td>
         <td className="num">{rs(r.labOwesUs)}</td>
@@ -519,19 +520,19 @@ function FinanceRow({ r, range, open, onToggle }) {
       {open && (
         <tr className="detail-row">
           <td colSpan={10}>
-            <QueryState query={q} empty="Koi booking nahi.">
+            <QueryState query={q} empty={tx("admin.koiBookingNahi")}>
               {(d) => (
                 <table className="table inner">
                   <thead>
                     <tr>
-                      <th>Code</th>
-                      <th>Mareez</th>
-                      <th>Sample liya</th>
-                      <th>Payment</th>
-                      <th className="num">Total</th>
-                      <th className="num">Lab ka</th>
-                      <th className="num">Commission</th>
-                      <th>Settlement</th>
+                      <th>{tx("admin.code")}</th>
+                      <th>{tx("admin.mareez")}</th>
+                      <th>{tx("admin.sampleLiya")}</th>
+                      <th>{tx("admin.payment")}</th>
+                      <th className="num">{tx("admin.total")}</th>
+                      <th className="num">{tx("admin.labKa")}</th>
+                      <th className="num">{tx("admin.commission")}</th>
+                      <th>{tx("admin.settlement")}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -548,7 +549,7 @@ function FinanceRow({ r, range, open, onToggle }) {
                         <td className="num">{rs(b.total)}</td>
                         <td className="num">{rs(b.labPayout)}</td>
                         <td className="num">{rs(b.commission)}</td>
-                        <td className="small">{b.settlement ? (b.settlement.status === "paid" ? `Paid · ${b.settlement.reference}` : "Hisaab bana, payment baaki") : "Abhi hisaab nahi bana"}</td>
+                        <td className="small">{b.settlement ? (b.settlement.status === "paid" ? tx("admin.paid2", { reference: b.settlement.reference }) : tx("admin.hisaabBanaPaymentBaaki")) : tx("admin.abhiHisaabNahiBana")}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -568,37 +569,37 @@ function TestProfit({ rows, collectionFees, range }) {
     <div className="card">
       <div className="row-between wrap">
         <div>
-          <h3>Test-wise profit</h3>
-          <p className="muted small">Kis test se kitna bana. Rate wahi hai jo booking ke time fix hua tha.</p>
+          <h3>{tx("admin.testWiseProfit")}</h3>
+          <p className="muted small">{tx("admin.kisTestSeKitna")}</p>
         </div>
         {rows.length > 0 && (
           <button
             className="secondary-btn small"
             onClick={() =>
               downloadCsv(`test_profit_${range.from}_${range.to}.csv`, [
-                ["Test", "Kitni baar", "Patient rate", "Mareez se aaya", "Lab ka hissa", "Platform ka hissa", "Margin %"],
+                ["Test", tx("admin.kitniBaar"), tx("admin.patientRate"), tx("admin.mareezSeAaya"), tx("admin.labKaHissa"), tx("admin.platformKaHissa"), "Margin %"],
                 ...rows.map((r) => [r.name, r.count, r.minRate === r.maxRate ? r.minRate : `${r.minRate}-${r.maxRate}`, r.revenue, r.labShare, r.platformShare, pct(r.platformShare, r.revenue)]),
               ])
             }
           >
-            ⬇ Excel (CSV)
+            {tx("admin.excelCsv")}
           </button>
         )}
       </div>
       {rows.length === 0 ? (
-        <p className="muted">Is samay mein koi test nahi hua.</p>
+        <p className="muted">{tx("admin.isSamayMeinKoi")}</p>
       ) : (
         <div className="table-wrap">
           <table className="table">
             <thead>
               <tr>
-                <th>Test</th>
-                <th className="num">Kitni baar</th>
-                <th className="num">Patient rate</th>
-                <th className="num">Mareez se aaya</th>
-                <th className="num">Lab ka hissa</th>
-                <th className="num">Platform ka hissa</th>
-                <th className="num">Margin</th>
+                <th>{tx("admin.test")}</th>
+                <th className="num">{tx("admin.kitniBaar")}</th>
+                <th className="num">{tx("admin.patientRate")}</th>
+                <th className="num">{tx("admin.mareezSeAaya")}</th>
+                <th className="num">{tx("admin.labKaHissa")}</th>
+                <th className="num">{tx("admin.platformKaHissa")}</th>
+                <th className="num">{tx("admin.margin")}</th>
               </tr>
             </thead>
             <tbody>
@@ -617,7 +618,7 @@ function TestProfit({ rows, collectionFees, range }) {
               ))}
               {collectionFees > 0 && (
                 <tr>
-                  <td className="strong">Home collection fee</td>
+                  <td className="strong">{tx("admin.homeCollectionFee")}</td>
                   <td className="num">–</td>
                   <td className="num">–</td>
                   <td className="num">{rs(collectionFees)}</td>
@@ -631,7 +632,7 @@ function TestProfit({ rows, collectionFees, range }) {
             </tbody>
             <tfoot>
               <tr>
-                <th>Kul</th>
+                <th>{tx("admin.kul2")}</th>
                 <th className="num">{tot.count}</th>
                 <th className="num"></th>
                 <th className="num">{rs(tot.revenue + collectionFees)}</th>
@@ -681,107 +682,107 @@ function RulesRates() {
           <div className="rules">
             <div className="card toolbar no-print">
               <div>
-                <strong>Rules, commission aur rate card</strong>
-                <div className="muted small">Ye section sirf super admin dekh sakta hai. Labs ke saath agreement ke liye PDF download karein.</div>
+                <strong>{tx("admin.rulesCommissionAurRate")}</strong>
+                <div className="muted small">{tx("admin.yeSectionSirfSuper")}</div>
               </div>
               <button className="primary-btn small" onClick={printPdf}>
-                <Icon name="file" size={18} /> PDF download karein
+                <Icon name="file" size={18} /> {tx("admin.pdfDownloadKarein")}
               </button>
             </div>
 
             <article className="rules-doc">
               <header className="doc-head">
                 <div>
-                  <h2>LabLoop: Paise ke niyam aur rate card</h2>
-                  <p className="muted small">Taiyaar kiya: {prettyDate(todayIst())} · Sirf andar ke istemaal ke liye (confidential)</p>
+                  <h2>{tx("admin.labloopPaiseKeNiyam")}</h2>
+                  <p className="muted small">{tx("admin.taiyaarKiya")} {prettyDate(todayIst())} {tx("admin.sirfAndarKeIstemaal")}</p>
                 </div>
               </header>
 
               <section>
-                <h3>1. Paisa kaise batta hai</h3>
+                <h3>{tx("admin.1PaisaKaiseBatta")}</h3>
                 <div className="formula">
                   <div>
-                    <span>Patient rate</span>
-                    <strong>Mareez jo deta hai</strong>
+                    <span>{tx("admin.patientRate")}</span>
+                    <strong>{tx("admin.mareezJoDetaHai")}</strong>
                   </div>
                   <span className="op">=</span>
                   <div>
-                    <span>Lab ka hissa (B2B)</span>
-                    <strong>Rate × (100 − commission%)</strong>
+                    <span>{tx("admin.labKaHissaB2b")}</span>
+                    <strong>{tx("admin.rate100Commission")}</strong>
                   </div>
                   <span className="op">+</span>
                   <div className="hl">
-                    <span>Platform ka hissa</span>
-                    <strong>Rate × commission%</strong>
+                    <span>{tx("admin.platformKaHissa")}</span>
+                    <strong>{tx("admin.rateCommission")}</strong>
                   </div>
                 </div>
                 <ol className="rule-list">
                   <li>
-                    <b>Patient rate</b> = lab ka walk-in rate (jo lab counter pe leta hai). Mareez ko isse zyada kabhi nahi lagta.
+                    <b>{tx("admin.patientRate")}</b> {tx("admin.labKaWalkIn")}
                   </li>
                   <li>
-                    <b>Lab ka hissa</b> = rate × (100 − commission%), poore rupaye mein round. Kisi test pe agent/admin ne alag B2B rate rakha ho toh wahi lagta hai (rate card mein "custom" likha hai).
+                    <b>{tx("admin.labKaHissa")}</b> {tx("admin.rate100CommissionPoore")}
                   </li>
                   <li>
-                    <b>Platform ka hissa</b> = patient rate − lab ka hissa. Ye aapka profit hai.
+                    <b>{tx("admin.platformKaHissa")}</b> {tx("admin.patientRateLabKa")}
                   </li>
                   <li>
-                    <b>Home collection fee</b> (abhi ₹{def.collectionFee}): jab tests ka total ₹{def.freeCollectionAbove} se kam ho. Ye fee <b>poori platform ki</b> hai, lab ka hissa isme nahi.
+                    <b>{tx("admin.homeCollectionFee")}</b> {tx("admin.abhi")}{def.collectionFee}{tx("admin.jabTestsKaTotal")}{def.freeCollectionAbove} {tx("admin.seKamHoYe")} <b>{tx("admin.pooriPlatformKi")}</b> {tx("admin.haiLabKaHissa")}
                   </li>
                   <li>
-                    <b>Minimum booking</b>: ₹{def.minOrderValue} se kam ki jaanch book nahi hoti.
+                    <b>{tx("admin.minimumBooking")}</b>: ₹{def.minOrderValue} {tx("admin.seKamKiJaanch")}
                   </li>
                   <li>
-                    <b>Rate lock</b>: booking ke time jo rate tha wahi lagta hai. Baad mein rate badalne se purani booking ka hisaab nahi badalta.
+                    <b>{tx("admin.rateLock")}</b>{tx("admin.bookingKeTimeJo")}
                   </li>
                   <li>
-                    <b>Cancel booking</b> pe kisi ka koi paisa nahi banta.
+                    <b>{tx("admin.cancelBooking")}</b> {tx("admin.peKisiKaKoi")}
                   </li>
                 </ol>
               </section>
 
               <section>
-                <h3>2. Kaun kisko dega</h3>
+                <h3>{tx("admin.2KaunKiskoDega")}</h3>
                 <div className="two">
                   <div className="card inset">
-                    <strong>Cash payment (lab ne mareez se liya)</strong>
-                    <p className="small">Poora paisa lab ke paas hai. <b>Lab platform ko uska hissa (commission + collection fee) dega.</b></p>
+                    <strong>{tx("admin.cashPaymentLabNe")}</strong>
+                    <p className="small">{tx("admin.pooraPaisaLabKe")} <b>{tx("admin.labPlatformKoUska")}</b></p>
                   </div>
                   <div className="card inset">
-                    <strong>Online / UPI (site pe aaya)</strong>
-                    <p className="small">Poora paisa platform ke paas hai. <b>Platform lab ko uska hissa (B2B) dega.</b></p>
+                    <strong>{tx("admin.onlineUpiSitePe")}</strong>
+                    <p className="small">{tx("admin.pooraPaisaPlatformKe")} <b>{tx("admin.platformLabKoUska")}</b></p>
                   </div>
                 </div>
                 <ol className="rule-list" start={8}>
                   <li>
-                    <b>Settlement har hafte</b>: Somvaar subah 6 baje pichhle hafte ka hisaab apne aap banta hai. Final = lab ka hissa − lab ke paas aaya cash. Plus ho toh platform lab ko dega, minus ho toh lab platform ko dega.
+                    <b>{tx("admin.settlementHarHafte")}</b>{tx("admin.somvaarSubah6Baje")}
                   </li>
-                  <li>Payment ke baad admin UTR/reference daal ke settlement "paid" mark karega. Uske baad woh bookings dobara nahi gini jaati.</li>
-                  <li>Ginti sirf un bookings ki hoti hai jinka sample le liya gaya (collected / report di).</li>
+                  <li>{tx("admin.paymentKeBaadAdmin")}</li>
+                  <li>{tx("admin.gintiSirfUnBookings")}</li>
                 </ol>
               </section>
 
               <section>
-                <h3>3. OTP ke niyam</h3>
+                <h3>{tx("admin.3OtpKeNiyam")}</h3>
                 <ol className="rule-list" start={11}>
-                  <li>Har booking ka OTP ek hi baar banta hai aur hamesha same rehta hai. Time se expire nahi hota.</li>
-                  <li>OTP sirf tab band hota hai jab booking cancel ho, sample le liya jaaye, ya 5 baar galat OTP daala jaaye (tab booking lock hoti hai).</li>
-                  <li>Doctor appointment ke receipt code pe bhi yahi niyam lagte hain.</li>
+                  <li>{tx("admin.harBookingKaOtp")}</li>
+                  <li>{tx("admin.otpSirfTabBand")}</li>
+                  <li>{tx("admin.doctorAppointmentKeReceipt")}</li>
                 </ol>
               </section>
 
               <section>
-                <h3>4. Kitne rupaye ke test pe kitna kiska</h3>
+                <h3>{tx("admin.4KitneRupayeKe")}</h3>
                 <div className="table-wrap">
                   <table className="table">
                     <thead>
                       <tr>
-                        <th>Test rate</th>
+                        <th>{tx("admin.testRate")}</th>
                         {rates.map((c) => (
                           <th key={c} className="num">
-                            {c}% commission
+                            {c}{tx("admin.commission2")}
                             <br />
-                            <span className="sub-th">lab / platform</span>
+                            <span className="sub-th">{tx("admin.labPlatform")}</span>
                           </th>
                         ))}
                       </tr>
@@ -805,26 +806,26 @@ function RulesRates() {
                 </div>
 
                 <div className="calc no-print">
-                  <strong>Calculator</strong>
+                  <strong>{tx("admin.calculator")}</strong>
                   <label>
-                    Test rate ₹
+                    {tx("admin.testRate2")}
                     <input type="number" min="0" value={amount} onChange={(e) => setAmount(e.target.value)} />
                   </label>
                   <label>
-                    Commission %
+                    {tx("admin.commission3")}
                     <input type="number" min="0" max="90" value={commission} onChange={(e) => setCommission(e.target.value)} />
                   </label>
                   <span>
-                    Lab ko <b>{rs(calc.lab)}</b> · Platform ko <b className="profit">{rs(calc.platform)}</b>
+                    {tx("admin.labKo")} <b>{rs(calc.lab)}</b> {tx("admin.platformKo")} <b className="profit">{rs(calc.platform)}</b>
                   </span>
                 </div>
               </section>
 
               <section>
                 <div className="row-between wrap">
-                  <h3>5. Har lab ka rate card</h3>
-                  <select className="no-print" value={labId} onChange={(e) => setLabId(e.target.value)} aria-label="Lab chunein">
-                    <option value="all">Sab labs</option>
+                  <h3>{tx("admin.5HarLabKa")}</h3>
+                  <select className="no-print" value={labId} onChange={(e) => setLabId(e.target.value)} aria-label={tx("admin.labChunein")}>
+                    <option value="all">{tx("admin.sabLabs")}</option>
                     {labs.map((l) => (
                       <option key={l._id} value={l._id}>
                         {l.name}
@@ -832,7 +833,7 @@ function RulesRates() {
                     ))}
                   </select>
                 </div>
-                {shown.length === 0 && <p className="muted">Abhi koi chalu lab nahi hai.</p>}
+                {shown.length === 0 && <p className="muted">{tx("admin.abhiKoiChaluLab")}</p>}
                 {shown.map((l) => {
                   const tot = l.tests.reduce((a, t) => ({ p: a.p + t.patientPrice, lab: a.lab + t.labShare, plat: a.plat + t.platformShare }), { p: 0, lab: 0, plat: 0 });
                   return (
@@ -845,23 +846,23 @@ function RulesRates() {
                           </div>
                         </div>
                         <div className="chips">
-                          <span className="chip ref">{l.commissionPercent}% commission</span>
-                          <span className="chip">Collection fee ₹{l.collectionFee} (₹{l.freeCollectionAbove}+ pe free)</span>
-                          <span className="chip">Min ₹{l.minOrderValue}</span>
+                          <span className="chip ref">{l.commissionPercent}{tx("admin.commission2")}</span>
+                          <span className="chip">{tx("admin.collectionFee")}{l.collectionFee} (₹{l.freeCollectionAbove}{tx("admin.peFree")}</span>
+                          <span className="chip">{tx("admin.min")}{l.minOrderValue}</span>
                         </div>
                       </div>
                       {l.tests.length === 0 ? (
-                        <p className="muted small">Is lab ki rate list abhi khaali hai.</p>
+                        <p className="muted small">{tx("admin.isLabKiRate")}</p>
                       ) : (
                         <div className="table-wrap">
                           <table className="table">
                             <thead>
                               <tr>
-                                <th>Test</th>
-                                <th className="num">Patient rate</th>
-                                <th className="num">Lab ko</th>
-                                <th className="num">Platform ko</th>
-                                <th className="num">Margin</th>
+                                <th>{tx("admin.test")}</th>
+                                <th className="num">{tx("admin.patientRate")}</th>
+                                <th className="num">{tx("admin.labKo")}</th>
+                                <th className="num">{tx("admin.platformKo2")}</th>
+                                <th className="num">{tx("admin.margin")}</th>
                               </tr>
                             </thead>
                             <tbody>
@@ -869,7 +870,7 @@ function RulesRates() {
                                 <tr key={t._id}>
                                   <td>
                                     {t.name}
-                                    {t.custom && <span className="chip small-chip">custom</span>}
+                                    {t.custom && <span className="chip small-chip">{tx("admin.custom")}</span>}
                                   </td>
                                   <td className="num">{rs(t.patientPrice)}</td>
                                   <td className="num">{rs(t.labShare)}</td>
@@ -882,7 +883,7 @@ function RulesRates() {
                             </tbody>
                             <tfoot>
                               <tr>
-                                <th>{l.tests.length} test</th>
+                                <th>{l.tests.length} {tx("admin.test2")}</th>
                                 <th className="num">{rs(tot.p)}</th>
                                 <th className="num">{rs(tot.lab)}</th>
                                 <th className="num">{rs(tot.plat)}</th>
@@ -896,7 +897,7 @@ function RulesRates() {
                   );
                 })}
               </section>
-              <footer className="doc-foot muted small">LabLoop · Ye document system ke live rates se bana hai. Rate badalne pe naya PDF download karein.</footer>
+              <footer className="doc-foot muted small">{tx("admin.labloopYeDocumentSystem")}</footer>
             </article>
           </div>
         );
@@ -919,9 +920,9 @@ function MoneyOverview({ d, compact }) {
       <div className="money-grid">
         <div className="card money-card">
           <span className="money-step">1</span>
-          <span className="flow-label">Paisa kahan aaya</span>
+          <span className="flow-label">{tx("admin.paisaKahanAaya")}</span>
           <strong className="money-big">{rs(t.gross)}</strong>
-          <p className="muted small">{t.bookings} sample · mareezon ne kul diya</p>
+          <p className="muted small">{t.bookings} {tx("admin.sampleMareezonNeKul")}</p>
           <div className="split-bar" aria-hidden="true">
             <span className="seg-cash" style={{ flex: t.cashCollected || 0 }} />
             <span className="seg-online" style={{ flex: t.onlineCollected || 0 }} />
@@ -930,7 +931,7 @@ function MoneyOverview({ d, compact }) {
           <dl className="money-rows">
             <div>
               <dt>
-                <i className="dot-cash" /> Cash (labs ke paas)
+                <i className="dot-cash" /> {tx("admin.cashLabsKePaas")}
               </dt>
               <dd>
                 {rs(t.cashCollected)} <small>{cashPct}%</small>
@@ -938,7 +939,7 @@ function MoneyOverview({ d, compact }) {
             </div>
             <div>
               <dt>
-                <i className="dot-online" /> Online (aapke account mein)
+                <i className="dot-online" /> {tx("admin.onlineAapkeAccountMein")}
               </dt>
               <dd>
                 {rs(t.onlineCollected)} <small>{t.gross ? 100 - cashPct : 0}%</small>
@@ -949,20 +950,20 @@ function MoneyOverview({ d, compact }) {
 
         <div className="card money-card">
           <span className="money-step">2</span>
-          <span className="flow-label">Kiska kitna bana</span>
+          <span className="flow-label">{tx("admin.kiskaKitnaBana")}</span>
           <strong className="money-big profit">{rs(t.commission)}</strong>
-          <p className="muted small">Aapka profit (platform ka hissa)</p>
+          <p className="muted small">{tx("admin.aapkaProfitPlatformKa")}</p>
           <dl className="money-rows">
             <div>
-              <dt>Test margin</dt>
+              <dt>{tx("admin.testMargin")}</dt>
               <dd>{rs(testMargin)}</dd>
             </div>
             <div>
-              <dt>Home collection fee</dt>
+              <dt>{tx("admin.homeCollectionFee")}</dt>
               <dd>{rs(t.collectionFees || 0)}</dd>
             </div>
             <div className="sep">
-              <dt>Labs ka hissa</dt>
+              <dt>{tx("admin.labsKaHissa")}</dt>
               <dd>{rs(t.labEarning)}</dd>
             </div>
           </dl>
@@ -970,49 +971,49 @@ function MoneyOverview({ d, compact }) {
 
         <div className="card money-card money-settle">
           <span className="money-step">3</span>
-          <span className="flow-label">Settlement (abhi baaki)</span>
+          <span className="flow-label">{tx("admin.settlementAbhiBaaki")}</span>
           <div className="settle-pair">
             <div className="settle-out">
-              <small>Aapko labs ko dena hai</small>
+              <small>{tx("admin.aapkoLabsKoDena")}</small>
               <strong>{rs(t.payToLabs || 0)}</strong>
-              <span>{t.labsToPay || 0} lab</span>
+              <span>{t.labsToPay || 0} {tx("admin.lab3")}</span>
             </div>
             <div className="settle-in">
-              <small>Labs se lena hai</small>
+              <small>{tx("admin.labsSeLenaHai")}</small>
               <strong>{rs(t.collectFromLabs || 0)}</strong>
-              <span>{t.labsToCollect || 0} lab</span>
+              <span>{t.labsToCollect || 0} {tx("admin.lab3")}</span>
             </div>
           </div>
-          <p className="small settle-note">Har lab ka alag hisaab hai. Ek lab ka lena doosre lab ke dene se kata nahi jaata.</p>
+          <p className="small settle-note">{tx("admin.harLabKaAlag")}</p>
         </div>
       </div>
 
       <div className="two who-lists">
-        <WhoList title="Inko paisa dena hai" tone="out" rows={pay} empty="Abhi kisi lab ko kuch nahi dena." />
-        <WhoList title="Inse paisa lena hai" tone="in" rows={collect} empty="Abhi kisi lab se kuch nahi lena." />
+        <WhoList title={tx("admin.inkoPaisaDenaHai")} tone="out" rows={pay} empty={tx("admin.abhiKisiLabKo")} />
+        <WhoList title={tx("admin.insePaisaLenaHai")} tone="in" rows={collect} empty={tx("admin.abhiKisiLabSe")} />
       </div>
 
       {!compact && (
         <div className="card proof">
-          <span className="flow-label">Sab settle hone ke baad aapke paas bachega</span>
+          <span className="flow-label">{tx("admin.sabSettleHoneKe")}</span>
           <div className="final-steps light">
             <div>
-              <span>Online aaya</span>
+              <span>{tx("admin.onlineAaya")}</span>
               <strong>{rs(t.onlineCollected)}</strong>
             </div>
             <span className="op">−</span>
             <div>
-              <span>Online ka lab hissa (dena)</span>
+              <span>{tx("admin.onlineKaLabHissa")}</span>
               <strong>{rs(t.weOweLab)}</strong>
             </div>
             <span className="op">+</span>
             <div>
-              <span>Cash ka commission (lena)</span>
+              <span>{tx("admin.cashKaCommissionLena")}</span>
               <strong>{rs(t.labOwesUs)}</strong>
             </div>
             <span className="op">=</span>
             <div className="hl">
-              <span>Aapka profit</span>
+              <span>{tx("admin.aapkaProfit")}</span>
               <strong>{rs(t.onlineCollected - t.weOweLab + t.labOwesUs)}</strong>
             </div>
           </div>
@@ -1042,7 +1043,7 @@ function WhoList({ title, tone, rows, empty }) {
               <div className="who-name">
                 <strong>{r.lab.name}</strong>
                 <small>
-                  {r.bookings} sample · cash {rs(r.cashCollected)} · online {rs(r.onlineCollected)}
+                  {r.bookings} {tx("admin.sampleCash")} {rs(r.cashCollected)} {tx("admin.online")} {rs(r.onlineCollected)}
                   {r.lab.phone ? ` · ${r.lab.phone}` : ""}
                 </small>
               </div>
@@ -1060,15 +1061,15 @@ function MoneyPanel() {
   const [range, setRange] = useState({ from: monthStart(), to: todayIst() });
   const q = useQuery({ queryKey: ["finance", range], queryFn: () => get("/admin/finance", range), placeholderData: (p) => p, refetchInterval: 60_000 });
   const presets = [
-    ["Is mahine", { from: monthStart(), to: todayIst() }],
-    ["Pichhle 7 din", { from: daysAgoIst(6), to: todayIst() }],
-    ["Pichhle 30 din", { from: daysAgoIst(29), to: todayIst() }],
-    ["Is saal", { from: `${todayIst().slice(0, 4)}-01-01`, to: todayIst() }],
+    [tx("admin.isMahine"), { from: monthStart(), to: todayIst() }],
+    [tx("admin.pichhle7Din"), { from: daysAgoIst(6), to: todayIst() }],
+    [tx("admin.pichhle30Din"), { from: daysAgoIst(29), to: todayIst() }],
+    [tx("admin.isSaal"), { from: `${todayIst().slice(0, 4)}-01-01`, to: todayIst() }],
   ];
   return (
     <section>
       <div className="row-between wrap dash-section-row">
-        <h2 className="dash-section">Paise ka poora hisaab</h2>
+        <h2 className="dash-section">{tx("admin.paiseKaPooraHisaab")}</h2>
         <div className="pill-row">
           {presets.map(([label, r]) => (
             <button key={label} className={`pill ${range.from === r.from && range.to === r.to ? "on" : ""}`} onClick={() => setRange(r)}>
@@ -1099,7 +1100,7 @@ function Agents() {
     }
   }
   async function reset(u) {
-    if (!window.confirm(`${u.name} ka password reset karein? Unhe naya temporary password dena hoga.`)) return;
+    if (!window.confirm(tx("admin.kaPasswordResetKarein", { name: u.name }))) return;
     try {
       const r = await post(`/admin/users/${u._id}/reset-password`, {});
       setTemp({ email: r.user.email || r.user.phone, password: r.tempPassword });
@@ -1113,18 +1114,18 @@ function Agents() {
       <CreateAgent startOpen onCreated={(t) => (setTemp(t), refresh())} />
       <TempPassword email={temp?.email} password={temp?.password} />
       <ErrorMsg msg={err} />
-      <QueryState query={q} isEmpty={(d) => d.data.length === 0} empty="Abhi koi agent nahi hai. Upar form se pehla agent banayein.">
+      <QueryState query={q} isEmpty={(d) => d.data.length === 0} empty={tx("admin.abhiKoiAgentNahi")}>
         {(d) => (
           <div className="table-wrap">
             <table className="table">
               <thead>
                 <tr>
-                  <th>Agent</th>
-                  <th>Login</th>
-                  <th className="num">Lab jode</th>
-                  <th className="num">Doctor jode</th>
-                  <th>Aakhri login</th>
-                  <th>Status</th>
+                  <th>{tx("admin.agent")}</th>
+                  <th>{tx("admin.login")}</th>
+                  <th className="num">{tx("admin.labJode")}</th>
+                  <th className="num">{tx("admin.doctorJode")}</th>
+                  <th>{tx("admin.aakhriLogin")}</th>
+                  <th>{tx("admin.status")}</th>
                   <th />
                 </tr>
               </thead>
@@ -1133,7 +1134,7 @@ function Agents() {
                   <tr key={u._id}>
                     <td>
                       <strong>{u.name}</strong>
-                      {u.mustChangePassword && <div className="chip">Temp password</div>}
+                      {u.mustChangePassword && <div className="chip">{tx("admin.tempPassword")}</div>}
                     </td>
                     <td>
                       {u.email}
@@ -1148,10 +1149,10 @@ function Agents() {
                     <td>
                       <div className="btn-row">
                         <button className="secondary-btn small" onClick={() => toggle(u)}>
-                          {u.status === "active" ? "Disable" : "Enable"}
+                          {u.status === "active" ? tx("admin.disable") : tx("admin.enable")}
                         </button>
                         <button className="link-btn" onClick={() => reset(u)}>
-                          Reset password
+                          {tx("admin.resetPassword")}
                         </button>
                       </div>
                     </td>
@@ -1187,7 +1188,7 @@ function Users() {
     }
   }
   async function reset(u) {
-    if (!window.confirm(`${u.name} ka password reset karein? Unhe naya temporary password dena hoga.`)) return;
+    if (!window.confirm(tx("admin.kaPasswordResetKarein", { name: u.name }))) return;
     try {
       const r = await post(`/admin/users/${u._id}/reset-password`, {});
       setTemp({ email: r.user.email || r.user.phone, password: r.tempPassword });
@@ -1201,35 +1202,35 @@ function Users() {
     <>
       <TempPassword email={temp?.email} password={temp?.password} />
       <Filters>
-        <select value={role} onChange={(e) => setRole(e.target.value)} aria-label="Role">
-          <option value="">Sabhi role</option>
+        <select value={role} onChange={(e) => setRole(e.target.value)} aria-label={tx("admin.role")}>
+          <option value="">{tx("admin.sabhiRole")}</option>
           {ROLES.map((k) => [k, roleLabel(k)]).map(([k, l]) => (
             <option key={k} value={k}>
               {l}
             </option>
           ))}
         </select>
-        <select value={status} onChange={(e) => setStatus(e.target.value)} aria-label="Status">
-          <option value="">Sabhi status</option>
-          <option value="active">Active</option>
-          <option value="disabled">Disabled</option>
+        <select value={status} onChange={(e) => setStatus(e.target.value)} aria-label={tx("admin.status")}>
+          <option value="">{tx("admin.sabhiStatus")}</option>
+          <option value="active">{tx("admin.active")}</option>
+          <option value="disabled">{tx("admin.disabled")}</option>
         </select>
-        <input placeholder="Naam / email / phone" value={search} onChange={(e) => setSearch(e.target.value)} />
+        <input placeholder={tx("admin.naamEmailPhone")} value={search} onChange={(e) => setSearch(e.target.value)} />
       </Filters>
       <ErrorMsg msg={err} />
-      <QueryState query={q} empty="Koi user nahi mila.">
+      <QueryState query={q} empty={tx("admin.koiUserNahiMila")}>
         {(d) => (
           <>
             <div className="table-wrap">
               <table className="table">
                 <thead>
                   <tr>
-                    <th>Naam</th>
-                    <th>Role</th>
-                    <th>Login</th>
-                    <th>Linked</th>
-                    <th>Aakhri login</th>
-                    <th>Status</th>
+                    <th>{tx("admin.naam")}</th>
+                    <th>{tx("admin.role")}</th>
+                    <th>{tx("admin.login")}</th>
+                    <th>{tx("admin.linked")}</th>
+                    <th>{tx("admin.aakhriLogin")}</th>
+                    <th>{tx("admin.status")}</th>
                     <th />
                   </tr>
                 </thead>
@@ -1238,7 +1239,7 @@ function Users() {
                     <tr key={u._id}>
                       <td>
                         {u.name}
-                        {u.mustChangePassword && <div className="chip">Temp password</div>}
+                        {u.mustChangePassword && <div className="chip">{tx("admin.tempPassword")}</div>}
                       </td>
                       <td>{roleLabel(u.role)}</td>
                       <td>{u.email || u.phone}</td>
@@ -1251,10 +1252,10 @@ function Users() {
                         {u.role !== "super_admin" && (
                           <div className="btn-row">
                             <button className="secondary-btn small" onClick={() => toggle(u)}>
-                              {u.status === "active" ? "Disable" : "Enable"}
+                              {u.status === "active" ? tx("admin.disable") : tx("admin.enable")}
                             </button>
                             <button className="link-btn" onClick={() => reset(u)}>
-                              Reset password
+                              {tx("admin.resetPassword")}
                             </button>
                           </div>
                         )}
@@ -1294,29 +1295,29 @@ function CreateAgent({ onCreated, startOpen = false }) {
   if (!open)
     return (
       <button className="primary-btn small" onClick={() => setOpen(true)}>
-        + Naya field agent
+        {tx("admin.nayaFieldAgent")}
       </button>
     );
   return (
     <form className="card form-card" onSubmit={submit} noValidate>
-      <h2>Naya field agent jodein</h2>
-      <p className="muted small">Agent gaon, lab aur doctor ko platform pe jodta hai. Banane ke baad login ID aur temporary password yahin dikhega.</p>
+      <h2>{tx("admin.nayaFieldAgentJodein")}</h2>
+      <p className="muted small">{tx("admin.agentGaonLabAur")}</p>
       <div className="three">
-        <Field label="Naam" error={errs.name}>
+        <Field label={tx("admin.naam")} error={errs.name}>
           <input value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} />
         </Field>
-        <Field label="Email (login ID)" error={errs.email}>
+        <Field label={tx("admin.emailLoginId")} error={errs.email}>
           <input type="email" value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} />
         </Field>
-        <Field label="Phone" error={errs.phone}>
+        <Field label={tx("admin.phone")} error={errs.phone}>
           <input value={f.phone} onChange={(e) => setF({ ...f, phone: e.target.value })} />
         </Field>
       </div>
       <ErrorMsg msg={err} />
       <div className="btn-row">
-        <button className="primary-btn small">Agent banayein</button>
+        <button className="primary-btn small">{tx("admin.agentBanayein")}</button>
         <button type="button" className="secondary-btn small" onClick={() => setOpen(false)}>
-          Band karein
+          {tx("admin.bandKarein")}
         </button>
       </div>
     </form>
@@ -1331,7 +1332,7 @@ function Labs() {
   const { q, setPage } = useList("adminLabs", "/admin/labs", { status, q: search });
   const [err, setErr] = useState("");
   async function remove(l) {
-    if (!window.confirm(`"${l.name}" ko hamesha ke liye delete karein? Iske test aur staff login bhi hat jaayenge.`)) return;
+    if (!window.confirm(tx("admin.koHameshaKeLiye", { name: l.name }))) return;
     setErr("");
     try {
       await del(`/admin/labs/${l._id}`);
@@ -1351,27 +1352,27 @@ function Labs() {
   return (
     <>
       <Filters>
-        <select value={status} onChange={(e) => setStatus(e.target.value)} aria-label="Status">
-          <option value="">Sabhi</option>
-          <option value="active">Chalu</option>
-          <option value="disabled">Band</option>
+        <select value={status} onChange={(e) => setStatus(e.target.value)} aria-label={tx("admin.status")}>
+          <option value="">{tx("admin.sabhi")}</option>
+          <option value="active">{tx("admin.chalu")}</option>
+          <option value="disabled">{tx("admin.band")}</option>
         </select>
-        <input placeholder="Lab ka naam" value={search} onChange={(e) => setSearch(e.target.value)} />
+        <input placeholder={tx("admin.labKaNaam")} value={search} onChange={(e) => setSearch(e.target.value)} />
       </Filters>
       <ErrorMsg msg={err} />
-      <QueryState query={q} empty="Koi lab nahi.">
+      <QueryState query={q} empty={tx("admin.koiLabNahi")}>
         {(d) => (
           <>
             <div className="table-wrap">
               <table className="table">
                 <thead>
                   <tr>
-                    <th>Lab</th>
-                    <th>Radius</th>
-                    <th>Fees</th>
-                    <th>Commission</th>
-                    <th>Agent</th>
-                    <th>Status</th>
+                    <th>{tx("admin.lab2")}</th>
+                    <th>{tx("admin.radius")}</th>
+                    <th>{tx("admin.fees")}</th>
+                    <th>{tx("admin.commission")}</th>
+                    <th>{tx("admin.agent")}</th>
+                    <th>{tx("admin.status")}</th>
                     <th />
                   </tr>
                 </thead>
@@ -1384,7 +1385,7 @@ function Labs() {
                       </td>
                       <td>{l.serviceRadiusKm} km</td>
                       <td className="small">
-                        {rs(l.collectionFee)} · free ≥{rs(l.freeCollectionAbove)} · min {rs(l.minOrderValue)}
+                        {rs(l.collectionFee)} {tx("admin.free")}{rs(l.freeCollectionAbove)} {tx("admin.min2")} {rs(l.minOrderValue)}
                       </td>
                       <td>{l.commissionPercent}%</td>
                       <td>{l.onboardedBy?.name}</td>
@@ -1394,10 +1395,10 @@ function Labs() {
                       <td>
                         <div className="btn-row">
                           <button className="secondary-btn small" onClick={() => toggle(l)}>
-                            {l.status === "active" ? "Band" : "Chalu"}
+                            {l.status === "active" ? tx("admin.band") : tx("admin.chalu")}
                           </button>
                           <button className="secondary-btn small danger" onClick={() => remove(l)}>
-                            Delete
+                            {tx("admin.delete")}
                           </button>
                         </div>
                       </td>
@@ -1421,7 +1422,7 @@ function Doctors() {
   const { q, setPage } = useList("adminDoctors", "/admin/doctors", { status, q: search });
   const [err, setErr] = useState("");
   async function remove(d) {
-    if (!window.confirm(`"${d.name}" ko hamesha ke liye delete karein? Unka login bhi hat jaayega.`)) return;
+    if (!window.confirm(tx("admin.koHameshaKeLiye2", { name: d.name }))) return;
     setErr("");
     try {
       await del(`/admin/doctors/${d._id}`);
@@ -1441,28 +1442,28 @@ function Doctors() {
   return (
     <>
       <Filters>
-        <select value={status} onChange={(e) => setStatus(e.target.value)} aria-label="Status">
-          <option value="">Sabhi</option>
-          <option value="active">Chalu</option>
-          <option value="disabled">Band</option>
+        <select value={status} onChange={(e) => setStatus(e.target.value)} aria-label={tx("admin.status")}>
+          <option value="">{tx("admin.sabhi")}</option>
+          <option value="active">{tx("admin.chalu")}</option>
+          <option value="disabled">{tx("admin.band")}</option>
         </select>
-        <input placeholder="Doctor ka naam" value={search} onChange={(e) => setSearch(e.target.value)} />
+        <input placeholder={tx("admin.doctorKaNaam")} value={search} onChange={(e) => setSearch(e.target.value)} />
       </Filters>
       <ErrorMsg msg={err} />
-      <QueryState query={q} empty="Koi doctor nahi.">
+      <QueryState query={q} empty={tx("admin.koiDoctorNahi")}>
         {(d) => (
           <>
             <div className="table-wrap">
               <table className="table">
                 <thead>
                   <tr>
-                    <th>Doctor</th>
-                    <th>Specialty</th>
-                    <th>Din</th>
-                    <th>Fees</th>
-                    <th>Login</th>
-                    <th>Agent</th>
-                    <th>Status</th>
+                    <th>{tx("admin.doctor2")}</th>
+                    <th>{tx("admin.specialty")}</th>
+                    <th>{tx("admin.din3")}</th>
+                    <th>{tx("admin.fees")}</th>
+                    <th>{tx("admin.login")}</th>
+                    <th>{tx("admin.agent")}</th>
+                    <th>{tx("admin.status")}</th>
                     <th />
                   </tr>
                 </thead>
@@ -1484,10 +1485,10 @@ function Doctors() {
                       <td>
                         <div className="btn-row">
                           <button className="secondary-btn small" onClick={() => toggle(x)}>
-                            {x.status === "active" ? "Band" : "Chalu"}
+                            {x.status === "active" ? tx("admin.band") : tx("admin.chalu")}
                           </button>
                           <button className="secondary-btn small danger" onClick={() => remove(x)}>
-                            Delete
+                            {tx("admin.delete")}
                           </button>
                         </div>
                       </td>
@@ -1510,23 +1511,23 @@ function Villages() {
   return (
     <>
       <Filters>
-        <input placeholder="Gaon ka naam" value={search} onChange={(e) => setSearch(e.target.value)} />
+        <input placeholder={tx("admin.gaonKaNaam")} value={search} onChange={(e) => setSearch(e.target.value)} />
         <Link className="secondary-btn small" to="/agent">
-          + Gaon jodein
+          {tx("admin.gaonJodein")}
         </Link>
       </Filters>
-      <QueryState query={q} empty="Koi gaon nahi.">
+      <QueryState query={q} empty={tx("admin.koiGaonNahi")}>
         {(d) => (
           <>
             <div className="table-wrap">
               <table className="table">
                 <thead>
                   <tr>
-                    <th>Gaon</th>
-                    <th>Block</th>
-                    <th>District</th>
-                    <th>Lat, Lng</th>
-                    <th>Joda</th>
+                    <th>{tx("admin.gaon")}</th>
+                    <th>{tx("admin.block")}</th>
+                    <th>{tx("admin.district")}</th>
+                    <th>{tx("admin.latLng")}</th>
+                    <th>{tx("admin.joda")}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1560,43 +1561,43 @@ function Bookings() {
   return (
     <>
       <Filters>
-        <select value={f.status} onChange={set("status")} aria-label="Status">
-          <option value="">Sabhi status</option>
+        <select value={f.status} onChange={set("status")} aria-label={tx("admin.status")}>
+          <option value="">{tx("admin.sabhiStatus")}</option>
           {["requested", "confirmed", "collected", "report_ready", "cancelled"].map((s) => (
             <option key={s}>{s}</option>
           ))}
         </select>
-        <select value={f.source} onChange={set("source")} aria-label="Source">
-          <option value="">Patient + doctor</option>
-          <option value="patient">Patient</option>
-          <option value="doctor">Doctor referral</option>
+        <select value={f.source} onChange={set("source")} aria-label={tx("admin.source")}>
+          <option value="">{tx("admin.patientDoctor")}</option>
+          <option value="patient">{tx("admin.patient")}</option>
+          <option value="doctor">{tx("admin.doctorReferral")}</option>
         </select>
-        <input placeholder="Booking code" value={f.code} onChange={set("code")} />
+        <input placeholder={tx("admin.bookingCode")} value={f.code} onChange={set("code")} />
         <label className="small">
-          Se <input type="date" value={f.from} onChange={set("from")} />
+          {tx("admin.se")} <input type="date" value={f.from} onChange={set("from")} />
         </label>
         <label className="small">
-          Tak <input type="date" value={f.to} onChange={set("to")} />
+          {tx("admin.tak")} <input type="date" value={f.to} onChange={set("to")} />
         </label>
       </Filters>
-      <QueryState query={q} empty="Koi booking nahi.">
+      <QueryState query={q} empty={tx("admin.koiBookingNahi")}>
         {(d) => (
           <>
             <div className="table-wrap">
               <table className="table">
                 <thead>
                   <tr>
-                    <th>Code</th>
-                    <th>Mareez</th>
-                    <th>Gaon</th>
-                    <th>Lab</th>
-                    <th>Test</th>
-                    <th>Din</th>
-                    <th>Kul</th>
-                    <th>Lab payout</th>
-                    <th>Margin</th>
-                    <th>Pay</th>
-                    <th>Status</th>
+                    <th>{tx("admin.code")}</th>
+                    <th>{tx("admin.mareez")}</th>
+                    <th>{tx("admin.gaon")}</th>
+                    <th>{tx("admin.lab2")}</th>
+                    <th>{tx("admin.test")}</th>
+                    <th>{tx("admin.din3")}</th>
+                    <th>{tx("admin.kul2")}</th>
+                    <th>{tx("admin.labPayout")}</th>
+                    <th>{tx("admin.margin")}</th>
+                    <th>{tx("admin.pay")}</th>
+                    <th>{tx("admin.status")}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1622,7 +1623,7 @@ function Bookings() {
                       </td>
                       <td>
                         <Badge status={b.status} label={b.status} />
-                        {b.otpLocked && <div className="chip no">OTP lock</div>}
+                        {b.otpLocked && <div className="chip no">{tx("admin.otpLock")}</div>}
                       </td>
                     </tr>
                   ))}
@@ -1643,28 +1644,28 @@ function Appointments() {
   return (
     <>
       <Filters>
-        <select value={f.status} onChange={(e) => setF({ ...f, status: e.target.value })} aria-label="Status">
-          <option value="">Sabhi status</option>
+        <select value={f.status} onChange={(e) => setF({ ...f, status: e.target.value })} aria-label={tx("admin.status")}>
+          <option value="">{tx("admin.sabhiStatus")}</option>
           {["booked", "seen", "no_show", "cancelled"].map((s) => (
             <option key={s}>{s}</option>
           ))}
         </select>
-        <input type="date" value={f.date} onChange={(e) => setF({ ...f, date: e.target.value })} aria-label="Date" />
+        <input type="date" value={f.date} onChange={(e) => setF({ ...f, date: e.target.value })} aria-label={tx("admin.date")} />
       </Filters>
-      <QueryState query={q} empty="Koi appointment nahi.">
+      <QueryState query={q} empty={tx("admin.koiAppointmentNahi")}>
         {(d) => (
           <>
             <div className="table-wrap">
               <table className="table">
                 <thead>
                   <tr>
-                    <th>Code</th>
-                    <th>Din</th>
-                    <th>Token</th>
-                    <th>Doctor</th>
-                    <th>Mareez</th>
-                    <th>Gaon</th>
-                    <th>Status</th>
+                    <th>{tx("admin.code")}</th>
+                    <th>{tx("admin.din3")}</th>
+                    <th>{tx("admin.token")}</th>
+                    <th>{tx("admin.doctor2")}</th>
+                    <th>{tx("admin.mareez")}</th>
+                    <th>{tx("admin.gaon")}</th>
+                    <th>{tx("admin.status")}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1710,15 +1711,15 @@ function Settlements() {
     setMsg("");
     try {
       const r = await post("/admin/settlements/generate", weekOf ? { weekOf } : {});
-      setMsg(`${r.data.length} lab ka hisaab bana (${prettyDate(r.weekStart.slice(0, 10))} wala hafta)`);
+      setMsg(tx("admin.labKaHisaabBana", { length: r.data.length, v2: prettyDate(r.weekStart.slice(0, 10)) }));
       refresh();
     } catch (e) {
       setErr(errorMessage(e));
     }
   }
   async function markPaid(s) {
-    const who = s.netPayable >= 0 ? "Humne lab ko diya" : "Lab ne humein diya";
-    const reference = window.prompt(`${s.lab?.name}: ${who} ${rs(Math.abs(s.netPayable))}. Payment reference / UTR likhein:`);
+    const who = s.netPayable >= 0 ? tx("admin.humneLabKoDiya") : tx("admin.labNeHumeinDiya");
+    const reference = window.prompt(tx("admin.paymentReferenceUtrLikhein", { v1: s.lab?.name, who, v3: rs(Math.abs(s.netPayable)) }));
     if (!reference) return;
     try {
       await patch(`/admin/settlements/${s._id}/paid`, { reference });
@@ -1731,39 +1732,39 @@ function Settlements() {
   return (
     <>
       <div className="card">
-        <p className="muted">Har Monday 6 baje pichhle hafte ka hisaab apne aap banta hai. Yahan se dobara ya kisi purane hafte ka bana sakte hain.</p>
+        <p className="muted">{tx("admin.harMonday6Baje")}</p>
         <Filters>
           <label className="small">
-            Hafta (koi bhi din) <input type="date" value={weekOf} onChange={(e) => setWeekOf(e.target.value)} />
+            {tx("admin.haftaKoiBhiDin")} <input type="date" value={weekOf} onChange={(e) => setWeekOf(e.target.value)} />
           </label>
           <button className="primary-btn small" onClick={generate}>
-            Hisaab banayein
+            {tx("admin.hisaabBanayein")}
           </button>
         </Filters>
         <ErrorMsg msg={err} />
         {msg && <div className="ok">{msg}</div>}
       </div>
       <Filters>
-        <select value={status} onChange={(e) => setStatus(e.target.value)} aria-label="Status">
-          <option value="">Sabhi</option>
-          <option value="pending">Baaki</option>
-          <option value="paid">Paid</option>
+        <select value={status} onChange={(e) => setStatus(e.target.value)} aria-label={tx("admin.status")}>
+          <option value="">{tx("admin.sabhi")}</option>
+          <option value="pending">{tx("admin.baaki")}</option>
+          <option value="paid">{tx("admin.paid")}</option>
         </select>
       </Filters>
-      <QueryState query={q} empty="Abhi koi settlement nahi.">
+      <QueryState query={q} empty={tx("admin.abhiKoiSettlementNahi")}>
         {(d) => (
           <>
             <div className="table-wrap">
               <table className="table">
                 <thead>
                   <tr>
-                    <th>Lab</th>
-                    <th>Hafta</th>
-                    <th>Gross</th>
-                    <th>Lab ki kamai</th>
-                    <th>Cash lab ke paas</th>
-                    <th>Net</th>
-                    <th>Status</th>
+                    <th>{tx("admin.lab2")}</th>
+                    <th>{tx("admin.hafta")}</th>
+                    <th>{tx("admin.gross")}</th>
+                    <th>{tx("admin.labKiKamai")}</th>
+                    <th>{tx("admin.cashLabKePaas")}</th>
+                    <th>{tx("admin.net")}</th>
+                    <th>{tx("admin.status")}</th>
                     <th />
                   </tr>
                 </thead>
@@ -1785,7 +1786,7 @@ function Settlements() {
                       <td>
                         {s.status === "pending" && (
                           <button className="primary-btn small" onClick={() => markPaid(s)}>
-                            Paid mark karein
+                            {tx("admin.paidMarkKarein")}
                           </button>
                         )}
                       </td>
@@ -1809,26 +1810,26 @@ function Audit() {
   return (
     <>
       <Filters>
-        <input placeholder="Action (jaise user. ya booking.)" value={f.action} onChange={(e) => setF({ ...f, action: e.target.value })} />
-        <select value={f.entityType} onChange={(e) => setF({ ...f, entityType: e.target.value })} aria-label="Entity">
-          <option value="">Sabhi</option>
+        <input placeholder={tx("admin.actionJaiseUserYa")} value={f.action} onChange={(e) => setF({ ...f, action: e.target.value })} />
+        <select value={f.entityType} onChange={(e) => setF({ ...f, entityType: e.target.value })} aria-label={tx("admin.entity")}>
+          <option value="">{tx("admin.sabhi")}</option>
           {["User", "Lab", "LabTest", "Doctor", "Village", "Booking", "Appointment", "Settlement", "FamilyMember"].map((x) => (
             <option key={x}>{x}</option>
           ))}
         </select>
       </Filters>
-      <QueryState query={q} empty="Kuch nahi mila.">
+      <QueryState query={q} empty={tx("admin.kuchNahiMila")}>
         {(d) => (
           <>
             <div className="table-wrap">
               <table className="table">
                 <thead>
                   <tr>
-                    <th>Kab</th>
-                    <th>Kisne</th>
-                    <th>Kya</th>
-                    <th>Entity</th>
-                    <th>Pehle → Baad</th>
+                    <th>{tx("admin.kab")}</th>
+                    <th>{tx("admin.kisne")}</th>
+                    <th>{tx("admin.kya")}</th>
+                    <th>{tx("admin.entity")}</th>
+                    <th>{tx("admin.pehleBaad")}</th>
                     <th>IP</th>
                   </tr>
                 </thead>
@@ -1837,7 +1838,7 @@ function Audit() {
                     <tr key={a._id}>
                       <td className="small">{prettyDateTime(a.at)}</td>
                       <td>
-                        {a.actor?.name || "system"}
+                        {a.actor?.name || tx("admin.system")}
                         <div className="muted small">{roleLabel(a.actorRole)}</div>
                       </td>
                       <td>
