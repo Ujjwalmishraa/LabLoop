@@ -11,3 +11,7 @@ playwright-report/
 test-results/
 .DS_Store
 *.log
+
+# Private notes and DB backups: never push
+PRIVATE_SETUP.md
+db-backup/

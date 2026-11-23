@@ -6,7 +6,8 @@ LabLoop connects village patients in Siwan district (Bihar) with nearby patholog
 
 - Patients book blood/urine tests. The partner lab's collector takes the sample at home (patient gives a 4-digit OTP) and uploads the report.
 - Patients see nearby doctors (days, timing, fee) and take a token number.
-- Doctors refer lab tests to a partner lab from inside the app.
+- Doctors refer lab tests to a partner lab from inside the app, or send a walk-in patient's sample for **clinic pickup** (the lab collects all waiting samples at a clinic with one OTP).
+- The lab sees the distance and travel time to each patient on a map, with a **Navigate** button (Google Maps directions). When the collector taps *I'm leaving now*, the patient sees an arrival time.
 - The LabLoop team (super admin + field agents) onboards labs and doctors.
 
 The whole app (all five roles, server error messages and emails) runs in Hindi or English from one switch in the header. `npm run i18n:check` checks the two dictionaries match and flags hard-coded text.
@@ -97,6 +98,8 @@ docker compose exec api npm run create-admin -- --email you@example.com --name "
 | `npm run build` | Production build of the web app (`client/dist`) |
 | `npm run create-admin -- --email --name` | Create the super admin |
 | `npm run seed:dev` | Wipe and load demo data (dev only) |
+| `npm run migrate:labloop` | Upgrade an existing database to the LabLoop features without wiping it (safe to re-run; back up first) |
+| `npm run i18n:check` | Check `hi.json` and `en.json` have the same keys and flag hard-coded text |
 
 The first test run downloads a MongoDB binary for `mongodb-memory-server`. To use a local `mongod` instead: `MONGOMS_SYSTEM_BINARY=$(which mongod) npm test`. For e2e, also run once: `npx playwright install chromium chromium-headless-shell`.
 
@@ -120,6 +123,8 @@ See `server/.env.example` for the full list.
 | `SIGNED_URL_TTL_SEC` | Report link lifetime, default 600 (10 min) |
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `MAIL_FROM` | Email for credentials and password reset |
 | `SETTLEMENT_CRON`, `CRON_ENABLED`, `TZ_NAME` | Weekly settlement, default Monday 06:00 Asia/Kolkata |
+| `ORS_API_KEY` | Optional free OpenRouteService key for routes/ETA. Blank = public OSRM demo, then a straight-line estimate |
+| `ROUTING_OFFLINE` | `true` skips routing network calls (no-internet demos): ETAs show as approximate and the map hides |
 
 Client: `VITE_API_URL`. Leave it empty when the web app and API share an origin (dev proxy, Docker). Otherwise set the API origin, e.g. `https://api.nidaansetu.in`.
 
