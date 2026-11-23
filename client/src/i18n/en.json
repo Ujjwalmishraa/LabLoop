@@ -875,5 +875,8 @@
   "admin.humneLabKoDiya": "We paid the lab",
   "admin.labNeHumeinDiya": "The lab paid us",
   "status.active": "Active",
-  "status.disabled": "Disabled"
+  "status.disabled": "Disabled",
+  "receipt.lab": "Lab",
+  "receipt.tests": "Tests",
+  "receipt.testTitle": "Test booking receipt"
 }

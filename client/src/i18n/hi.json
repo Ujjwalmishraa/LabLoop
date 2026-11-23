@@ -875,5 +875,8 @@
   "admin.humneLabKoDiya": "हमने लैब को दिया",
   "admin.labNeHumeinDiya": "लैब ने हमें दिया",
   "status.active": "चालू",
-  "status.disabled": "बंद"
+  "status.disabled": "बंद",
+  "receipt.lab": "लैब",
+  "receipt.tests": "जाँच",
+  "receipt.testTitle": "जाँच बुकिंग की रसीद"
 }

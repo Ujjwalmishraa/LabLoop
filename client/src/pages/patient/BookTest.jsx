@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router";
 import { Icon } from "../../components/Icons.jsx";
+import { Logo, BrandName } from "../../components/Logo.jsx";
 import { testHint } from "../../testInfo.js";
 import { useMyLocation } from "../../components/useMyLocation.js";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -396,25 +397,44 @@ function Booked({ booking }) {
     <section className="center">
       <div className="success-icon" aria-hidden="true">✓</div>
       <h1 className="big-title">{t("booked.title")}</h1>
-      <p>
-        {t("booked.code")}: <strong data-testid="booking-code">{booking.code}</strong>
-      </p>
-      <div className="otp-box">
-        <div className="muted">{t("booked.otp")}</div>
-        <div className="otp" data-testid="booking-otp">
-          {booking.otp}
+      <div className="ll-receipt" data-testid="booking-receipt">
+        <div className="ll-receipt-head">
+          <Logo size={36} />
+          <BrandName />
+          <span className="muted small">{t("receipt.testTitle")}</span>
         </div>
-        <div className="muted small">{t("booked.otpHint")}</div>
+        <div className="ll-receipt-code">
+          <span className="muted small">{t("booked.code")}</span>
+          <strong data-testid="booking-code">{booking.code}</strong>
+        </div>
+        <div className="otp-box">
+          <div className="muted">{t("booked.otp")}</div>
+          <div className="otp" data-testid="booking-otp">
+            {booking.otp}
+          </div>
+          <div className="muted small">{t("booked.otpHint")}</div>
+        </div>
+        <dl className="ll-receipt-rows">
+          <dt>{t("receipt.lab")}</dt>
+          <dd>{booking.lab?.name}</dd>
+          <dt>{t("receipt.tests")}</dt>
+          <dd>{booking.items.map((i) => i.name).join(", ")}</dd>
+          <dt>{t("receipt.when")}</dt>
+          <dd>
+            {prettyDate(booking.date)}, {slotLabel(booking.slot)}
+          </dd>
+          <dt>{t("common.total")}</dt>
+          <dd>
+            <strong>{rs(booking.total)}</strong>
+          </dd>
+        </dl>
       </div>
-      <p className="muted">
-        {t("booked.next", { lab: booking.lab?.name })} {prettyDate(booking.date)}, {slotLabel(booking.slot)}.
-      </p>
       <Steps status={booking.status} />
       <Link className="primary-btn" to="/meri-booking">
-        {t("booked.mine")}
+        <Icon name="file" size={20} /> {t("booked.mine")}
       </Link>
       <Link className="secondary-btn" to="/home">
-        {t("common.home")}
+        <Icon name="home" size={20} /> {t("common.home")}
       </Link>
     </section>
   );

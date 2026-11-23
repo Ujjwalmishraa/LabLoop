@@ -177,10 +177,30 @@ export function Field({ label, hint, error, children }) {
   );
 }
 
+// Status chip: colour AND icon AND text, so it reads without colour vision.
+const STATUS_ICON = {
+  requested: "inbox",
+  confirmed: "truck",
+  collected: "flask",
+  report_ready: "checkCircle",
+  cancelled: "close",
+  booked: "clock",
+  seen: "checkCircle",
+  no_show: "close",
+  pending: "clock",
+  paid: "checkCircle",
+  active: "checkCircle",
+  disabled: "close",
+};
 export function Badge({ status, label }) {
   const { t } = useT();
   const text = label || t(`status.${status}`);
-  return <span className={`badge badge-${STATUS_COLOR[status] || "gray"}`}>{text === `status.${status}` ? status : text}</span>;
+  return (
+    <span className={`badge badge-${STATUS_COLOR[status] || "gray"}`}>
+      {STATUS_ICON[status] && <Icon name={STATUS_ICON[status]} size={14} />}
+      {text === `status.${status}` ? status : text}
+    </span>
+  );
 }
 
 export function Steps({ status }) {
@@ -218,28 +238,45 @@ export function Ok({ msg }) {
   );
 }
 
-export function Empty({ icon = "📭", text, children }) {
+// Friendly empty state: a small illustration, one line of text and at most one action.
+export function Empty({ icon = "📭", text, action, children }) {
   return (
     <div className="empty">
-      <div className="empty-icon" aria-hidden="true">{icon}</div>
-      <div>{text}</div>
+      <svg className="empty-art" viewBox="0 0 120 90" width="120" height="90" aria-hidden="true">
+        <ellipse cx="60" cy="80" rx="44" ry="6" fill="#e3f4f1" />
+        <rect x="26" y="18" width="68" height="54" rx="12" fill="#fff" stroke="#c4e6df" strokeWidth="3" />
+        <path d="M38 36h44M38 48h30" stroke="#c4e6df" strokeWidth="5" strokeLinecap="round" />
+        <circle cx="88" cy="22" r="14" fill="#fff4dc" stroke="#f59e0b" strokeWidth="3" />
+      </svg>
+      <span className="empty-emoji" aria-hidden="true">
+        {icon}
+      </span>
+      <p>{text}</p>
+      {action}
       {children}
     </div>
   );
 }
 
-export function Loading({ full, text }) {
+// Skeleton cards instead of a spinner; screen readers still hear "Loading…".
+export function Loading({ full, text, rows = 2 }) {
   const { t } = useT();
   return (
-    <div className={`loading ${full ? "full" : ""}`} role="status" aria-live="polite">
-      <span className="spinner" aria-hidden="true" />
-      {text || t("common.loading")}
+    <div className={`loading-skel ${full ? "full" : ""}`} role="status" aria-live="polite">
+      <span className="sr-only">{text || t("common.loading")}</span>
+      {Array.from({ length: full ? 3 : rows }, (_, i) => (
+        <div key={i} className="skel-card" aria-hidden="true">
+          <div className="skel w60" />
+          <div className="skel w90" />
+          <div className="skel w40" />
+        </div>
+      ))}
     </div>
   );
 }
 
 // Renders loading / error / empty for a TanStack query, else children(data).
-export function QueryState({ query, empty, emptyIcon, isEmpty, children }) {
+export function QueryState({ query, empty, emptyIcon, emptyAction, isEmpty, children }) {
   const { t } = useT();
   if (query.isPending) return <Loading />;
   if (query.isError)
@@ -253,7 +290,7 @@ export function QueryState({ query, empty, emptyIcon, isEmpty, children }) {
     );
   const d = query.data;
   const none = isEmpty ? isEmpty(d) : Array.isArray(d?.data) ? d.data.length === 0 : !d;
-  if (none && empty) return <Empty icon={emptyIcon} text={empty} />;
+  if (none && empty) return <Empty icon={emptyIcon} text={empty} action={emptyAction} />;
   return children(d);
 }
 

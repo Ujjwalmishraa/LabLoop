@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Icon } from "../../components/Icons.jsx";
 import { DoctorReceipt } from "../../components/Receipt.jsx";
 import { EtaBanner } from "../../components/EtaBanner.jsx";
-import { useSearchParams } from "react-router";
+import { Link, useSearchParams } from "react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { get, post, errorMessage } from "../../api/client.js";
 import { useT } from "../../i18n/I18nContext.jsx";
@@ -36,7 +36,16 @@ function TestBookings() {
   // Refresh every 30s so status changes from the lab show up without reloading
   const q = useQuery({ queryKey: ["myBookings", page], queryFn: () => get("/me/bookings", { page, limit: 10 }), refetchInterval: 30_000 });
   return (
-    <QueryState query={q} empty={t("mine.noTests")} emptyIcon="🩸">
+    <QueryState
+      query={q}
+      empty={t("mine.noTests")}
+      emptyIcon="🩸"
+      emptyAction={
+        <Link className="primary-btn small" to="/jaanch">
+          <Icon name="flask" size={18} /> {t("landing.bookTest")}
+        </Link>
+      }
+    >
       {(d) => (
         <>
           {d.data.map((b) => (

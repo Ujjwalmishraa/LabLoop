@@ -421,7 +421,10 @@ function RequestCard({ b }) {
         <Icon name="flask" size={17} /> {b.items.map((i) => i.name).join(", ")}
       </p>
       <p className="meta">
-        <Icon name="building" size={17} /> {b.lab?.name} · {prettyDate(b.date)}
+        <Icon name="building" size={17} />
+        <span>
+          {b.lab?.name} · {prettyDate(b.date)}
+        </span>
       </p>
       <Steps status={b.status} />
       {b.otp && <OtpBox otp={b.otp} />}

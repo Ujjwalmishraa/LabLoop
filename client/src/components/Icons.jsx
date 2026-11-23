@@ -1,5 +1,6 @@
 // One consistent line-icon set (24x24, 2px stroke) instead of emojis, which render differently on every phone.
 const P = {
+  close: <path d="M6 6l12 12M18 6 6 18" />,
   home: <path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z" />,
   flask: (
     <>
