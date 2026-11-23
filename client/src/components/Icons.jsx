@@ -144,13 +144,5 @@ export function Icon({ name, size = 22, className = "", title }) {
   );
 }
 
-// Brand mark: a bridge arch over a heartbeat line (Nidaan + Setu)
-export function Logo({ size = 40 }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 48 48" aria-hidden="true" className="logo-mark">
-      <rect width="48" height="48" rx="14" fill="#0f766e" />
-      <path d="M8 32 C14 16, 34 16, 40 32" stroke="#ffd27a" strokeWidth="3.5" fill="none" strokeLinecap="round" />
-      <path d="M8 32 h8 l3 -6 l4 10 l3 -7 l2 3 h12" stroke="#fff" strokeWidth="3" fill="none" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
+// The brand mark lives in Logo.jsx; re-exported so existing imports keep working.
+export { Logo } from "./Logo.jsx";

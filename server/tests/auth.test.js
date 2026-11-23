@@ -48,7 +48,7 @@ describe("patient sign-up", () => {
   test("duplicate mobile is rejected with a Hindi message", async () => {
     const r = await signup({ name: "Again", phone: "9123400001", password: "gaon1234" });
     expect(r.status).toBe(409);
-    expect(r.body.error.message).toMatch(/pehle se registered/);
+    expect(r.body.error.message).toMatch(/पहले से रजिस्टर्ड/);
   });
 
   test("weak password and bad phone are rejected with field errors", async () => {

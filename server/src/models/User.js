@@ -13,6 +13,8 @@ const userSchema = new Schema(
     lab: { type: ObjectId, ref: "Lab" },
     doctor: { type: ObjectId, ref: "Doctor" },
     village: { type: ObjectId, ref: "Village" }, // patient's saved village
+    lang: { type: String, enum: ["hi", "en"], default: "hi" }, // app + email language
+    langChosen: { type: Boolean, default: false }, // true once the user picked a language themselves
     createdBy: { type: ObjectId, ref: "User" },
     lastLoginAt: Date,
     // Bumped on password change / disable; access tokens carrying an older value are rejected.

@@ -4,7 +4,7 @@ import { Link } from "react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { get, post, patch, del, errorMessage, fieldErrors } from "../../api/client.js";
 import { PanelShell, Badge, ErrorMsg, Field, Pager, QueryState, Stat, TempPassword } from "../../components/ui.jsx";
-import { rs, prettyDate, prettyDateTime, roleLabel } from "../../utils.js";
+import { rs, prettyDate, prettyDateTime, roleLabel, ROLES } from "../../utils.js";
 import { useAuth } from "../../auth/AuthContext.jsx";
 
 const TABS = [
@@ -112,7 +112,7 @@ function Hero({ s, days }) {
           <h2>
             {greet}, {first} 👋
           </h2>
-          <p>Pichhle {days} din mein NidaanSetu ka poora haal, ek nazar mein.</p>
+          <p>Pichhle {days} din mein LabLoop ka poora haal, ek nazar mein.</p>
         </div>
         <div className="hero-net">
           <span>Network</span>
@@ -663,7 +663,7 @@ function RulesRates() {
 
   const printPdf = () => {
     const old = document.title;
-    document.title = `NidaanSetu_Rules_and_Rates_${todayIst()}`;
+    document.title = `LabLoop_Rules_and_Rates_${todayIst()}`;
     window.print();
     document.title = old;
   };
@@ -692,7 +692,7 @@ function RulesRates() {
             <article className="rules-doc">
               <header className="doc-head">
                 <div>
-                  <h2>NidaanSetu: Paise ke niyam aur rate card</h2>
+                  <h2>LabLoop: Paise ke niyam aur rate card</h2>
                   <p className="muted small">Taiyaar kiya: {prettyDate(todayIst())} · Sirf andar ke istemaal ke liye (confidential)</p>
                 </div>
               </header>
@@ -896,7 +896,7 @@ function RulesRates() {
                   );
                 })}
               </section>
-              <footer className="doc-foot muted small">NidaanSetu · Ye document system ke live rates se bana hai. Rate badalne pe naya PDF download karein.</footer>
+              <footer className="doc-foot muted small">LabLoop · Ye document system ke live rates se bana hai. Rate badalne pe naya PDF download karein.</footer>
             </article>
           </div>
         );
@@ -1203,7 +1203,7 @@ function Users() {
       <Filters>
         <select value={role} onChange={(e) => setRole(e.target.value)} aria-label="Role">
           <option value="">Sabhi role</option>
-          {Object.entries(roleLabel).map(([k, l]) => (
+          {ROLES.map((k) => [k, roleLabel(k)]).map(([k, l]) => (
             <option key={k} value={k}>
               {l}
             </option>
@@ -1240,7 +1240,7 @@ function Users() {
                         {u.name}
                         {u.mustChangePassword && <div className="chip">Temp password</div>}
                       </td>
-                      <td>{roleLabel[u.role]}</td>
+                      <td>{roleLabel(u.role)}</td>
                       <td>{u.email || u.phone}</td>
                       <td>{u.lab?.name || u.doctor?.name || "—"}</td>
                       <td>{prettyDateTime(u.lastLoginAt) || "—"}</td>
@@ -1838,7 +1838,7 @@ function Audit() {
                       <td className="small">{prettyDateTime(a.at)}</td>
                       <td>
                         {a.actor?.name || "system"}
-                        <div className="muted small">{roleLabel[a.actorRole] || a.actorRole}</div>
+                        <div className="muted small">{roleLabel(a.actorRole)}</div>
                       </td>
                       <td>
                         <code>{a.action}</code>

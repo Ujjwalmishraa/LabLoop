@@ -227,7 +227,7 @@ p { margin: 4px 0 10px; }
 }
 .row-between.wrap { flex-wrap: wrap; }
 
-/* ---------- NidaanSetu additions ---------- */
+/* ---------- LabLoop additions ---------- */
 a.primary-btn, a.secondary-btn { text-decoration: none; }
 a.big-action { color: inherit; text-decoration: none; }
 :focus-visible { outline: 3px solid #f59e0b; outline-offset: 2px; }

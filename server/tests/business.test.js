@@ -66,7 +66,7 @@ describe("pricing", () => {
     const r = await book(["Sugar Fasting", "Sugar PP"]); // 100 < 199
     expect(r.status).toBe(400);
     expect(r.body.error.code).toBe("MIN_ORDER");
-    expect(r.body.error.message).toBe("Kam se kam ₹199 ki jaanch book karein");
+    expect(r.body.error.message).toBe("कम से कम ₹199 की जाँच बुक करें");
   });
 
   test("tests from another lab cannot be mixed in", async () => {
@@ -192,7 +192,7 @@ describe("collection OTP", () => {
       const r = await lab.patch(`/lab/bookings/${b._id}/collect`, { otp: wrong });
       expect(r.status).toBe(400);
       expect(r.body.error.code).toBe("WRONG_OTP");
-      expect(r.body.error.message).toContain(`${5 - i} koshish baaki`);
+      expect(r.body.error.message).toContain(`${5 - i} कोशिश बाकी`);
     }
     const fifth = await lab.patch(`/lab/bookings/${b._id}/collect`, { otp: wrong });
     expect(fifth.status).toBe(423);

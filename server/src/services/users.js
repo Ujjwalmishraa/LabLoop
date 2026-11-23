@@ -22,9 +22,10 @@ export async function createStaffUser(req, { name, email, phone, role, lab, doct
     passwordHash: await hashPassword(password),
     mustChangePassword: true,
     createdBy: req.user._id,
+    lang: req.lang || "hi", // the person creating the account speaks with them; they can switch later
   });
   await audit(req, { action: "user.create", entityType: "User", entityId: user._id, after: pick(user, USER_AUDIT_FIELDS) });
-  await sendMail(credentialsMail({ name, email, password, role }));
+  await sendMail(credentialsMail({ name, email, password, role, lang: user.lang }));
   return { user, tempPassword: password };
 }
 
@@ -46,6 +47,6 @@ export async function resetUserPassword(req, user) {
   await user.save();
   await revokeAllForUser(user._id);
   await audit(req, { action: "user.reset_password", entityType: "User", entityId: user._id, after: { mustChangePassword: true } });
-  if (user.email) await sendMail(credentialsMail({ name: user.name, email: user.email, password, role: user.role }));
+  if (user.email) await sendMail(credentialsMail({ name: user.name, email: user.email, password, role: user.role, lang: user.lang }));
   return { user, tempPassword: password };
 }

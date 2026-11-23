@@ -122,7 +122,7 @@ router.post(
       labId: req.body.labId,
       testIds: req.body.testIds,
       date: date > addDaysIso(today, 7) ? addDaysIso(today, 1) : date,
-      slot: "Lab samay batayega",
+      slot: "lab_decides",
       address: req.body.address || "Lab phone karke pata lega",
       source: "doctor",
       referredBy: req.doctor._id,

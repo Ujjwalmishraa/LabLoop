@@ -1,4 +1,8 @@
-export const rs = (n) => "₹" + Math.round(Number(n) || 0).toLocaleString("en-IN");
+import { getLang, locale, t } from "./i18n/I18nContext.jsx";
+
+// Money is always ₹ with Indian digit grouping; numbers/dates follow the chosen language.
+export const rs = (n) => "₹" + new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 }).format(Math.round(Number(n) || 0));
+export const num = (n) => new Intl.NumberFormat(locale()).format(Number(n) || 0);
 
 export const STEPS = ["requested", "confirmed", "collected", "report_ready"];
 export const STATUS_COLOR = {
@@ -38,26 +42,38 @@ export function dayLabel(iso, t) {
   return `${t(`day.${weekday(iso)}`)} ${Number(iso.slice(8))}`;
 }
 
+// "2026-11-24" -> "24 Nov 2026" / "24 नव॰ 2026"
 export function prettyDate(iso) {
   if (!iso) return "";
   const [y, m, d] = iso.slice(0, 10).split("-").map(Number);
-  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-  return `${d} ${months[m - 1]} ${y}`;
+  return new Intl.DateTimeFormat(locale(), { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" }).format(new Date(Date.UTC(y, m - 1, d)));
 }
 
 export const prettyDateTime = (v) =>
-  v ? new Date(v).toLocaleString("en-IN", { timeZone: "Asia/Kolkata", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : "";
+  v ? new Intl.DateTimeFormat(locale(), { timeZone: "Asia/Kolkata", day: "numeric", month: "short", hour: "numeric", minute: "2-digit" }).format(new Date(v)) : "";
 
-export const SLOT_KEYS = ["slot.1", "slot.2", "slot.3"];
-export const LAB_SLOTS = ["Subah 6–8 baje", "Subah 8–10 baje", "Din 10–12 baje", "Dopahar 12–2 baje", "Shaam 4–6 baje"];
+// Clock time in India, e.g. "7:45 am" / "7:45 am" (hi-IN uses the same digits).
+export const clockTime = (v) => (v ? new Intl.DateTimeFormat(locale(), { timeZone: "Asia/Kolkata", hour: "numeric", minute: "2-digit" }).format(new Date(v)) : "");
+
+// Slots: the VALUE sent to the server is canonical ("06-08"); only the label is translated.
+export const SLOT_KEYS = ["06-08", "08-10", "10-12"];
+export const LAB_SLOTS = ["06-08", "08-10", "10-12", "12-14", "16-18"];
+// Older bookings stored a Hinglish/English label; show those as they are.
+export function slotLabel(v) {
+  if (!v) return "";
+  const s = t(`slot.${v}`);
+  return s === `slot.${v}` ? v : s;
+}
 
 // "10:00" -> "10 AM"
 export function time12(hhmm) {
   if (!hhmm) return "";
   const [h, m] = hhmm.split(":").map(Number);
-  const suf = h >= 12 ? "PM" : "AM";
-  const h12 = h % 12 || 12;
-  return m ? `${h12}:${String(m).padStart(2, "0")} ${suf}` : `${h12} ${suf}`;
+  return new Intl.DateTimeFormat(locale(), { hour: "numeric", minute: m ? "2-digit" : undefined, timeZone: "UTC" }).format(new Date(Date.UTC(2000, 0, 1, h, m)));
 }
 
-export const roleLabel = { super_admin: "Super admin", agent: "Field agent", lab_staff: "Lab staff", doctor: "Doctor", patient: "Patient" };
+// Doctor specialty in the chosen language (specialtyHi is entered in Hindi by the agent).
+export const specialtyName = (d) => (!d ? "" : getLang() === "en" ? d.specialty || d.specialtyHi || "" : d.specialtyHi || d.specialty || "");
+
+export const ROLES = ["super_admin", "agent", "lab_staff", "doctor", "patient"];
+export const roleLabel = (role) => (ROLES.includes(role) ? t(`role.${role}`) : role);

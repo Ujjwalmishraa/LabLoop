@@ -1,6 +1,7 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { http, post, refreshSession, setAccessToken, setOnSessionLost } from "../api/client.js";
+import { http, post, patch, refreshSession, setAccessToken, setOnSessionLost } from "../api/client.js";
+import { getLang, setOnLangChange, useT } from "../i18n/I18nContext.jsx";
 
 const AuthCtx = createContext(null);
 
@@ -16,6 +17,22 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [ready, setReady] = useState(false);
   const qc = useQueryClient();
+  const { setLang } = useT();
+  const userRef = useRef(null);
+  userRef.current = user;
+
+  // Switching language while logged in saves it to the profile (any role), so the next login
+  // and the user's emails use it too. Best effort: offline switching still works locally.
+  useEffect(() => {
+    setOnLangChange((lang) => {
+      if (userRef.current && userRef.current.lang !== lang) {
+        userRef.current = { ...userRef.current, lang };
+        setUser((u) => (u ? { ...u, lang } : u));
+        patch("/auth/me/lang", { lang }).catch(() => {});
+      }
+    });
+    return () => setOnLangChange(() => {});
+  }, []);
 
   // Restore the session from the refresh cookie on page load.
   useEffect(() => {
@@ -49,6 +66,14 @@ export function AuthProvider({ children }) {
           err.role = data.user.role;
           throw err;
         }
+        // After an explicit login: use the language the user saved earlier; if they never chose one,
+        // keep what is on screen now and save it to their profile (so emails match too).
+        if (data.user.langChosen && data.user.lang) setLang(data.user.lang, { save: false });
+        else {
+          data.user = { ...data.user, lang: getLang(), langChosen: true };
+          setAccessToken(data.accessToken);
+          await patch("/auth/me/lang", { lang: getLang() }).catch(() => {});
+        }
         return startSession(data);
       },
       signup: async (body) => startSession(await post("/auth/signup", body)),
@@ -64,7 +89,7 @@ export function AuthProvider({ children }) {
         }
       },
     }),
-    [user, ready, startSession, qc]
+    [user, ready, startSession, qc, setLang]
   );
 
   return <AuthCtx.Provider value={value}>{children}</AuthCtx.Provider>;

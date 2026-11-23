@@ -12,7 +12,7 @@ import { todayIso } from "../lib/dates.js";
 import { audit, pick } from "../lib/audit.js";
 import { badRequest, conflict, notFound } from "../lib/errors.js";
 import { getStorage } from "../lib/storage/index.js";
-import { meView, nameSchema, emailSchema } from "./auth.js";
+import { meView, nameSchema, emailSchema, langSchema } from "./auth.js";
 
 const router = Router();
 const patientOnly = guard("patient");
@@ -34,18 +34,19 @@ export function patientBookingView(b) {
 router.patch(
   "/me",
   ...patientOnly,
-  validate({ body: z.object({ name: nameSchema.optional(), email: emailSchema.optional(), villageId: objectId.optional() }) }),
+  validate({ body: z.object({ name: nameSchema.optional(), email: emailSchema.optional(), villageId: objectId.optional(), lang: langSchema.optional() }) }),
   async (req, res) => {
     const user = req.user;
-    const before = pick(user, ["name", "email", "village"]);
+    const before = pick(user, ["name", "email", "village", "lang"]);
     if (req.body.villageId) {
       if (!(await Village.exists({ _id: req.body.villageId }))) throw notFound("Gaon nahi mila", "VILLAGE_NOT_FOUND");
       user.village = req.body.villageId;
     }
     if (req.body.name) user.name = req.body.name;
     if (req.body.email) user.email = req.body.email;
+    if (req.body.lang) Object.assign(user, { lang: req.body.lang, langChosen: true });
     await user.save();
-    await audit(req, { action: "user.update_profile", entityType: "User", entityId: user._id, before, after: pick(user, ["name", "email", "village"]) });
+    await audit(req, { action: "user.update_profile", entityType: "User", entityId: user._id, before, after: pick(user, ["name", "email", "village", "lang"]) });
     res.json({ user: await meView(user) });
   }
 );

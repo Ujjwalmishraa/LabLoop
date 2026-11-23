@@ -17,6 +17,7 @@ import {
 import { sendMail, resetMail } from "../lib/mailer.js";
 import { audit } from "../lib/audit.js";
 import { badRequest, conflict, forbidden, unauthorized } from "../lib/errors.js";
+import { translateText } from "../lib/i18n.js";
 
 const router = Router();
 
@@ -28,6 +29,7 @@ export const passwordSchema = z
 export const phoneSchema = z.string().trim().regex(/^[6-9]\d{9}$/, "10 ankon ka sahi mobile number likhein");
 export const emailSchema = z.string().trim().toLowerCase().email("Sahi email likhein").max(120);
 export const nameSchema = z.string().trim().min(2, "Naam likhein").max(80);
+export const langSchema = z.enum(["hi", "en"]);
 
 // Compared against when the account doesn't exist, so login takes the same time either way.
 let dummyHash;
@@ -64,7 +66,7 @@ router.post(
     const { name, phone, email, password } = req.body;
     if (await User.exists({ phone, role: "patient" })) throw conflict("Yeh mobile number pehle se registered hai. Login karein.", "DUPLICATE");
     if (email && (await User.exists({ email }))) throw conflict("Yeh email pehle se registered hai", "DUPLICATE");
-    const user = await User.create({ name, phone, email, role: "patient", passwordHash: await hashPassword(password) });
+    const user = await User.create({ name, phone, email, role: "patient", lang: req.lang, langChosen: true, passwordHash: await hashPassword(password) });
     req.user = user;
     await audit(req, { action: "user.signup", entityType: "User", entityId: user._id, after: { name, phone, email, role: "patient" } });
     user.lastLoginAt = new Date();
@@ -84,7 +86,7 @@ router.post(
       : await User.findOne({ phone: identifier, role: "patient" });
     const ok = await verifyPassword(password, user?.passwordHash || (await getDummyHash()));
     if (!user || !ok) throw unauthorized("Mobile/email ya password galat hai", "INVALID_CREDENTIALS");
-    if (user.status !== "active") throw forbidden("Aapka account band hai. NidaanSetu team se sampark karein.", "ACCOUNT_DISABLED");
+    if (user.status !== "active") throw forbidden("Aapka account band hai. LabLoop team se sampark karein.", "ACCOUNT_DISABLED");
     user.lastLoginAt = new Date();
     await user.save();
     req.user = user;
@@ -143,12 +145,12 @@ router.post(
       user.resetTokenHash = sha256(token);
       user.resetTokenExpiresAt = new Date(Date.now() + 30 * 60 * 1000);
       await user.save();
-      await sendMail(resetMail({ name: user.name, email: user.email, token }));
+      await sendMail(resetMail({ name: user.name, email: user.email, token, lang: user.lang }));
       req.user = user;
       await audit(req, { action: "auth.forgot_password", entityType: "User", entityId: user._id });
     }
     // Same answer either way so nobody can discover which emails are registered.
-    res.json({ ok: true, message: "Agar yeh email registered hai, toh password badalne ka link bhej diya gaya hai." });
+    res.json({ ok: true, message: translateText(req.lang, "Agar yeh email registered hai, toh password badalne ka link bhej diya gaya hai.") });
   }
 );
 
@@ -168,12 +170,20 @@ router.post(
     await revokeAllForUser(user._id);
     req.user = user;
     await audit(req, { action: "auth.reset_password", entityType: "User", entityId: user._id });
-    res.json({ ok: true, message: "Password badal gaya. Ab login karein." });
+    res.json({ ok: true, message: translateText(req.lang, "Password badal gaya. Ab login karein.") });
   }
 );
 
 router.get("/me", authenticate, async (req, res) => {
   res.json({ user: await meView(req.user) });
+});
+
+// Any role: save the language picked in the app (used after login and for emails).
+router.patch("/me/lang", authenticate, validate({ body: z.object({ lang: langSchema }) }), async (req, res) => {
+  req.user.lang = req.body.lang;
+  req.user.langChosen = true;
+  await req.user.save();
+  res.json({ lang: req.user.lang });
 });
 
 export default router;

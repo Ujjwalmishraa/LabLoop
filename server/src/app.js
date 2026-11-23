@@ -5,6 +5,7 @@ import cookieParser from "cookie-parser";
 import { env } from "./config/env.js";
 import { sanitize, apiLimiter } from "./middleware/security.js";
 import { errorHandler, notFoundHandler } from "./middleware/error.js";
+import { langMiddleware } from "./lib/i18n.js";
 import authRoutes from "./routes/auth.js";
 import publicRoutes from "./routes/public.js";
 import patientRoutes from "./routes/patient.js";
@@ -25,8 +26,9 @@ export function createApp() {
   app.use(express.json({ limit: "200kb" }));
   app.use(cookieParser());
   app.use(sanitize);
+  app.use(langMiddleware); // req.lang = "hi" | "en" from Accept-Language
 
-  app.get("/api/health", (_req, res) => res.json({ ok: true, app: "NidaanSetu" }));
+  app.get("/api/health", (_req, res) => res.json({ ok: true, app: "LabLoop" }));
 
   const v1 = express.Router();
   v1.use(apiLimiter);

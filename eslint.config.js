@@ -6,7 +6,7 @@ export default [
   { ignores: ["archive/**", "**/dist/**", "**/node_modules/**", "playwright-report/**", "test-results/**", "server/storage/**"] },
   js.configs.recommended,
   {
-    files: ["server/**/*.js", "e2e/**/*.js", "*.config.js"],
+    files: ["server/**/*.js", "e2e/**/*.js", "scripts/**/*.js", "*.config.js"],
     languageOptions: { ecmaVersion: 2023, sourceType: "module", globals: { ...globals.node } },
     rules: { "no-unused-vars": ["error", { argsIgnorePattern: "^_", varsIgnorePattern: "^_" }] },
   },

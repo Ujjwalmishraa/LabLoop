@@ -7,7 +7,7 @@ import { get, post, errorMessage } from "../../api/client.js";
 import { useAuth } from "../../auth/AuthContext.jsx";
 import { useT } from "../../i18n/I18nContext.jsx";
 import { Back, ErrorMsg, QueryState } from "../../components/ui.jsx";
-import { rs, dayLabel, time12, DAYS } from "../../utils.js";
+import { rs, dayLabel, time12, DAYS, specialtyName } from "../../utils.js";
 
 export function scheduleText(schedule, t) {
   const sorted = [...(schedule || [])].sort((a, b) => DAYS.indexOf(a.day) - DAYS.indexOf(b.day));
@@ -29,13 +29,13 @@ export function DoctorList() {
     <section>
       <Back to="/home" />
       <h1 className="big-title">{t("doctors.title")}</h1>
-      <div className="pill-row scroll-row" role="radiogroup" aria-label="Specialty">
+      <div className="pill-row scroll-row" role="radiogroup" aria-label={t("doctors.specialty")}>
         <button role="radio" aria-checked={!specialty} className={`pill ${!specialty ? "on" : ""}`} onClick={() => setSpecialty("")}>
           {t("doctors.all")}
         </button>
         {specs.data?.data.map((s) => (
           <button role="radio" aria-checked={specialty === s.specialty} key={s.specialty} className={`pill ${specialty === s.specialty ? "on" : ""}`} onClick={() => setSpecialty(s.specialty)}>
-            {s.specialtyHi || s.specialty}
+            {specialtyName(s)}
           </button>
         ))}
       </div>
@@ -48,7 +48,7 @@ export function DoctorList() {
                 <span className="km">{t("common.km", { n: doc.distanceKm })}</span>
               </div>
               <p className="doc-spec">
-                {doc.specialtyHi || doc.specialty} · <span className="muted">{doc.degree}</span>
+                {specialtyName(doc)} · <span className="muted">{doc.degree}</span>
               </p>
               <p className="meta"><Icon name="building" size={17} /> {[doc.clinicName, doc.clinicAddress].filter(Boolean).join(", ")}</p>
               <div className="doc-info">
@@ -126,7 +126,7 @@ export function DoctorBook() {
           <>
             <h1 className="big-title">{d.doctor.name}</h1>
             <p className="muted">
-              {d.doctor.specialtyHi || d.doctor.specialty} · {t("doctors.fee")} {rs(d.doctor.fee)}
+              {specialtyName(d.doctor)} · {t("doctors.fee")} {rs(d.doctor.fee)}
             </p>
             <div className="field">
               <span className="field-label">{t("details.who")}</span>

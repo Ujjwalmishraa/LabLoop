@@ -30,7 +30,7 @@ const schema = z.object({
   SMTP_PORT: z.coerce.number().default(587),
   SMTP_USER: z.string().optional(),
   SMTP_PASS: z.string().optional(),
-  MAIL_FROM: z.string().default("NidaanSetu <no-reply@nidaansetu.in>"),
+  MAIL_FROM: z.string().default("LabLoop <no-reply@nidaansetu.in>"),
 
   RATE_LIMIT_ENABLED: z
     .enum(["true", "false"])

@@ -95,7 +95,7 @@ export async function takeToken(req, { patient, doctorId, date, familyMemberId, 
 
 export const VISIT_MAX_ATTEMPTS = 5;
 const visitLocked = () =>
-  new AppError(423, "VISIT_CODE_LOCKED", "Bahut baar galat code. Yeh number lock ho gaya, NidaanSetu team se sampark karein.");
+  new AppError(423, "VISIT_CODE_LOCKED", "Bahut baar galat code. Yeh number lock ho gaya, LabLoop team se sampark karein.");
 
 // Doctor enters the 4-digit code from the patient's receipt. Locks after VISIT_MAX_ATTEMPTS wrong tries.
 export async function verifyVisitCode(appt, code) {

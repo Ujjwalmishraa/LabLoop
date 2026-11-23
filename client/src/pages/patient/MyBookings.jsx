@@ -6,7 +6,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { get, post, errorMessage } from "../../api/client.js";
 import { useT } from "../../i18n/I18nContext.jsx";
 import { Back, Badge, ErrorMsg, Pager, QueryState, Steps, Tabs } from "../../components/ui.jsx";
-import { rs, prettyDate } from "../../utils.js";
+import { rs, prettyDate, slotLabel } from "../../utils.js";
 
 export default function MyBookings() {
   const { t } = useT();
@@ -106,7 +106,7 @@ function BookingCard({ b }) {
           <p className="small">
             {b.status === "confirmed" && b.collectionTime && (
               <>
-                {t("mine.collector", { time: b.collectionTime })}
+                {t("mine.collector", { time: slotLabel(b.collectionTime) })}
                 <br />
               </>
             )}
@@ -144,7 +144,7 @@ function BookingCard({ b }) {
       {report && (
         <div className="report-view">
           {report.mime.startsWith("image/") ? (
-            <img className="report-img" src={report.url} alt={`Report ${report.name}`} />
+            <img className="report-img" src={report.url} alt={t("mine.reportAlt", { name: report.name })} />
           ) : (
             <a className="secondary-btn small" href={report.url} target="_blank" rel="noopener noreferrer" data-testid="report-link">
               📄 {report.name}

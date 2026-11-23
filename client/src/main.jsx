@@ -6,6 +6,7 @@ import { AuthProvider } from "./auth/AuthContext.jsx";
 import { I18nProvider } from "./i18n/I18nContext.jsx";
 import App from "./App.jsx";
 import "./styles.css";
+import "./labloop.css";
 
 const queryClient = new QueryClient({
   defaultOptions: {

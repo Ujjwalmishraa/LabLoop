@@ -1,4 +1,5 @@
 import { useNavigate } from "react-router";
+import { useT } from "../i18n/I18nContext.jsx";
 
 // Development only (rendered behind import.meta.env.DEV, so it is stripped from production builds).
 // Mirrors the accounts created by `npm run seed:dev`.
@@ -21,9 +22,10 @@ const ACCOUNTS = [
 
 export default function DemoLogins() {
   const nav = useNavigate();
+  const { t } = useT();
   return (
     <details className="demo-logins">
-      <summary>🔑 Demo logins (sirf development) · password: <code>{PASSWORD}</code></summary>
+      <summary>{t("demo.title")} <code>{PASSWORD}</code></summary>
       <table className="table">
         <tbody>
           {ACCOUNTS.map((a) => (
@@ -34,7 +36,7 @@ export default function DemoLogins() {
               </td>
               <td>
                 <button className="secondary-btn small" onClick={() => nav(a.path, { state: { identifier: a.id, password: PASSWORD } })}>
-                  Login →
+                  {t("demo.login")}
                 </button>
               </td>
             </tr>

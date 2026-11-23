@@ -1,6 +1,6 @@
 import { Icon, Logo } from "./Icons.jsx";
 import { useT } from "../i18n/I18nContext.jsx";
-import { rs, prettyDate, time12, weekday } from "../utils.js";
+import { rs, prettyDate, time12, weekday, specialtyName } from "../utils.js";
 
 // Doctor token receipt. The patient shows it at the clinic; the doctor types the 4-digit
 // visit code to mark the visit done (like the lab collection OTP).
@@ -14,7 +14,7 @@ export function DoctorReceipt({ appt, onPrint = true }) {
       <div className="receipt-head">
         <Logo size={34} />
         <div>
-          <strong>NidaanSetu</strong>
+          <strong>LabLoop</strong>
           <div className="small muted">{t("receipt.title")}</div>
         </div>
         <span className="receipt-no">{appt.code}</span>
@@ -29,7 +29,7 @@ export function DoctorReceipt({ appt, onPrint = true }) {
         <dt>{t("receipt.doctor")}</dt>
         <dd>
           {d.name}
-          {d.specialtyHi || d.specialty ? <div className="small muted">{d.specialtyHi || d.specialty}</div> : null}
+          {specialtyName(d) ? <div className="small muted">{specialtyName(d)}</div> : null}
         </dd>
         <dt>{t("receipt.clinic")}</dt>
         <dd>{[d.clinicName, d.clinicAddress].filter(Boolean).join(", ") || "—"}</dd>

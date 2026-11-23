@@ -1,130 +1,114 @@
 import { Link } from "react-router";
 import { Header } from "../../components/ui.jsx";
-import { Icon, Logo } from "../../components/Icons.jsx";
-import { VillageScene, TestIcon, DoctorIcon, ReportIcon } from "../../components/Illustrations.jsx";
+import { Icon } from "../../components/Icons.jsx";
+import { Logo, BrandName } from "../../components/Logo.jsx";
+import { TestIcon, ReportIcon } from "../../components/Illustrations.jsx";
 import DemoLogins from "../../components/DemoLogins.jsx";
 import { useT } from "../../i18n/I18nContext.jsx";
 
 const STAFF = [
-  { to: "/login/lab", icon: "flask", label: "Lab", sub: "Order aur report", tone: "teal" },
-  { to: "/login/doctor", icon: "steth", label: "Doctor", sub: "Aaj ke mareez", tone: "violet" },
-  { to: "/login/agent", icon: "briefcase", label: "Agent", sub: "Lab, doctor jodein", tone: "amber" },
-  { to: "/login/admin", icon: "shield", label: "Admin", sub: "Poora hisaab", tone: "rose" },
+  { to: "/login/lab", icon: "flask", label: "portal.lab", sub: "landing.staffLab", tone: "teal" },
+  { to: "/login/doctor", icon: "steth", label: "portal.doctor", sub: "landing.staffDoctor", tone: "violet" },
+  { to: "/login/agent", icon: "briefcase", label: "portal.agent", sub: "landing.staffAgent", tone: "amber" },
+  { to: "/login/admin", icon: "shield", label: "portal.admin", sub: "landing.staffAdmin", tone: "rose" },
 ];
 
+// Test names are what labs print on their rate cards, so they stay as they are in both languages.
 const POPULAR = ["CBC", "Sugar (Fasting / PP)", "HbA1c", "Thyroid (T3, T4, TSH)", "Lipid Profile", "LFT", "KFT", "Vitamin D", "Widal", "Malaria", "Urine Routine", "Dengue NS1"];
+
+// Collector on a bike, for step 2.
+function CollectorArt() {
+  return (
+    <svg viewBox="0 0 96 96" width="96" height="96" aria-hidden="true">
+      <circle cx="48" cy="48" r="44" fill="#fff4dc" />
+      <circle cx="30" cy="66" r="9" fill="none" stroke="#0b8276" strokeWidth="4" />
+      <circle cx="68" cy="66" r="9" fill="none" stroke="#0b8276" strokeWidth="4" />
+      <path d="M30 66 L44 50 L60 50 L68 66 M44 50 L40 40 L50 40" fill="none" stroke="#0b8276" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx="54" cy="28" r="6" fill="#f59e0b" />
+      <path d="M54 34 L52 48" stroke="#f59e0b" strokeWidth="5" strokeLinecap="round" />
+      <rect x="60" y="38" width="12" height="10" rx="2" fill="#0e9f8e" />
+    </svg>
+  );
+}
 
 export default function Landing() {
   const { t } = useT();
   const steps = [
-    { art: <TestIcon />, title: t("landing.f1"), sub: t("landing.s1") },
-    { art: <ReportIcon />, title: t("landing.f2"), sub: t("landing.s2") },
-    { art: <DoctorIcon />, title: t("landing.f3"), sub: t("landing.s3") },
+    { art: <TestIcon />, title: t("landing.step1"), sub: t("landing.step1s") },
+    { art: <CollectorArt />, title: t("landing.step2"), sub: t("landing.step2s") },
+    { art: <ReportIcon />, title: t("landing.step3"), sub: t("landing.step3s") },
   ];
-  const why = [
-    { icon: "truck", tone: "teal", title: t("landing.w1"), sub: t("landing.w1s") },
-    { icon: "rupee", tone: "amber", title: t("landing.w2"), sub: t("landing.w2s") },
-    { icon: "shield", tone: "violet", title: t("landing.w3"), sub: t("landing.w3s") },
-    { icon: "clock", tone: "rose", title: t("landing.w4"), sub: t("landing.w4s") },
+  const badges = [
+    { icon: "shield", title: t("landing.badgeOtp"), sub: t("landing.badgeOtpS") },
+    { icon: "file", title: t("landing.badgeReport"), sub: t("landing.badgeReportS") },
+    { icon: "globe", title: t("landing.badgeLang"), sub: t("landing.badgeLangS") },
   ];
   return (
-    <div className="app landing lp">
-      <Header showLang />
+    <div className="app landing ll-landing">
+      <Header />
 
-      <section className="lp-hero">
-        <div className="lp-wrap lp-hero-grid">
-          <div className="lp-copy">
-            <span className="lp-eyebrow">
-              <span className="pulse" aria-hidden="true" />
-              <Icon name="pin" size={15} /> Siwan, Bihar
-            </span>
-            <h1>{t("landing.title")}</h1>
-            <p className="lp-lead">{t("landing.sub")}</p>
-            <div className="lp-cta">
-              <Link className="primary-btn" to="/signup">
-                {t("landing.signup")} <Icon name="arrowRight" size={20} />
-              </Link>
-              <Link className="secondary-btn" to="/login">
-                {t("landing.login")}
-              </Link>
-            </div>
-            <ul className="lp-trust">
-              <li>
-                <Icon name="truck" size={17} /> {t("landing.t1")}
-              </li>
-              <li>
-                <Icon name="shield" size={17} /> {t("landing.t2")}
-              </li>
-              <li>
-                <Icon name="rupee" size={17} /> {t("landing.t3")}
-              </li>
-            </ul>
+      <section className="ll-hero">
+        <div className="lp-wrap ll-hero-inner">
+          <div className="ll-hero-mark">
+            <Logo size={96} />
           </div>
-
-          <div className="lp-art" aria-hidden="true">
-            <div className="lp-scene">
-              <VillageScene label="" />
-            </div>
-            <div className="float-card fc-booking">
-              <span className="fc-icon tone-teal">
-                <Icon name="flask" size={20} />
-              </span>
-              <div>
-                <strong>CBC + HbA1c</strong>
-                <small>
-                  <Icon name="clock" size={13} /> {t("landing.card3")}
-                </small>
-              </div>
-              <span className="fc-otp">OTP 4821</span>
-            </div>
-            <div className="float-card fc-done">
-              <span className="fc-icon tone-green">
-                <Icon name="checkCircle" size={20} />
-              </span>
-              <div>
-                <strong>{t("landing.card1")}</strong>
-                <small>Shree Pathology Lab</small>
-              </div>
-            </div>
-            <div className="float-card fc-report">
-              <span className="fc-icon tone-violet">
-                <Icon name="file" size={20} />
-              </span>
-              <div>
-                <strong>{t("landing.card2")}</strong>
-                <small>PDF · 2 pages</small>
-              </div>
-            </div>
+          <span className="lp-eyebrow">
+            <Icon name="pin" size={15} /> {t("landing.where")}
+          </span>
+          <h1>
+            <BrandName />
+          </h1>
+          <p className="ll-tagline">{t("brand.tag")}</p>
+          <p className="lp-lead">{t("landing.sub")}</p>
+          <div className="ll-cta">
+            <Link className="primary-btn ll-big" to="/signup">
+              <Icon name="flask" size={22} /> {t("landing.bookTest")}
+            </Link>
+            <a className="secondary-btn ll-big" href="#staff">
+              <Icon name="users" size={22} /> {t("landing.staffLogin")}
+            </a>
           </div>
+          <p className="ll-have-account">
+            {t("landing.haveAccount")}{" "}
+            <Link to="/login" className="link-btn">
+              {t("landing.login")}
+            </Link>
+          </p>
         </div>
-      </section>
-
-      <section className="lp-wrap lp-why">
-        {why.map((w) => (
-          <div key={w.title} className={`why-card tone-${w.tone}`}>
-            <span className="staff-icon">
-              <Icon name={w.icon} size={22} />
-            </span>
-            <strong>{w.title}</strong>
-            <p>{w.sub}</p>
-          </div>
-        ))}
       </section>
 
       <main className="lp-wrap">
-        <div className="lp-section-head">
-          <h2 className="section-head">{t("landing.howTitle")}</h2>
-        </div>
-        <ol className="lp-steps">
-          {steps.map((s, i) => (
-            <li key={s.title}>
-              <div className="lp-step-art">{s.art}</div>
-              <span className="lp-step-no">{i + 1}</span>
-              <strong>{s.title}</strong>
-              <p>{s.sub}</p>
+        <section aria-labelledby="how-title">
+          <h2 id="how-title" className="section-head">
+            {t("landing.howTitle")}
+          </h2>
+          <ol className="ll-steps">
+            {steps.map((s, i) => (
+              <li key={s.title}>
+                <div className="ll-step-art">{s.art}</div>
+                <span className="ll-step-no" aria-hidden="true">
+                  {i + 1}
+                </span>
+                <strong>{s.title}</strong>
+                <p>{s.sub}</p>
+              </li>
+            ))}
+          </ol>
+        </section>
+
+        <ul className="ll-badges">
+          {badges.map((b) => (
+            <li key={b.title}>
+              <span className="ll-badge-icon">
+                <Icon name={b.icon} size={22} />
+              </span>
+              <span>
+                <strong>{b.title}</strong>
+                <small>{b.sub}</small>
+              </span>
             </li>
           ))}
-        </ol>
+        </ul>
 
         <div className="lp-section-head">
           <h2 className="section-head">{t("landing.popTitle")}</h2>
@@ -139,17 +123,7 @@ export default function Landing() {
           ))}
         </div>
 
-        <section className="lp-band">
-          <div>
-            <h2>{t("landing.ctaTitle")}</h2>
-            <p>{t("landing.ctaSub")}</p>
-          </div>
-          <Link className="lp-band-btn" to="/signup">
-            {t("landing.ctaBtn")} <Icon name="arrowRight" size={20} />
-          </Link>
-        </section>
-
-        <div className="lp-section-head">
+        <div className="lp-section-head" id="staff">
           <h2 className="section-head">{t("landing.staffTitle")}</h2>
           <p className="muted">{t("landing.staff")}</p>
         </div>
@@ -160,8 +134,8 @@ export default function Landing() {
                 <Icon name={s.icon} size={26} />
               </span>
               <span className="staff-text">
-                <strong>{s.label}</strong>
-                <small>{s.sub}</small>
+                <strong>{t(s.label)}</strong>
+                <small>{t(s.sub)}</small>
               </span>
               <Icon name="arrowRight" size={18} className="staff-arrow" />
             </Link>
@@ -175,19 +149,17 @@ export default function Landing() {
           <div>
             <div className="brand">
               <Logo size={36} />
-              <div className="brand-name">
-                Nidaan<span>Setu</span>
-              </div>
+              <BrandName />
             </div>
-            <p>{t("landing.footTag")}</p>
+            <p>{t("brand.tag")}</p>
           </div>
-          <nav aria-label="Footer">
-            <Link to="/login/lab">Lab login</Link>
-            <Link to="/login/doctor">Doctor login</Link>
-            <Link to="/login/agent">Agent login</Link>
+          <nav aria-label={t("landing.footer")}>
+            <Link to="/login/lab">{t("portal.lab")}</Link>
+            <Link to="/login/doctor">{t("portal.doctor")}</Link>
+            <Link to="/login/agent">{t("portal.agent")}</Link>
           </nav>
         </div>
-        <div className="lp-wrap lp-copy-line">© {new Date().getFullYear()} NidaanSetu</div>
+        <div className="lp-wrap lp-copy-line">© {new Date().getFullYear()} LabLoop</div>
       </footer>
     </div>
   );

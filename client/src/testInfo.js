@@ -30,5 +30,6 @@ const RULES = [
 export function testHint(name, lang = "hi") {
   const rule = RULES.find(([re]) => re.test(name || ""));
   if (!rule) return "";
-  return lang === "en" ? rule[2] : lang === "hd" ? rule[3] : rule[1];
+  // "roman" = Hindi in Roman letters, kept only so search matches what people type.
+  return lang === "en" ? rule[2] : lang === "roman" ? rule[1] : rule[3];
 }

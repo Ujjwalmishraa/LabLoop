@@ -7,7 +7,7 @@ import { get, post, errorMessage, fieldErrors } from "../../api/client.js";
 import { useAuth } from "../../auth/AuthContext.jsx";
 import { useT } from "../../i18n/I18nContext.jsx";
 import { Back, Field, ErrorMsg, QueryState, Steps } from "../../components/ui.jsx";
-import { rs, todayIso, addDays, dayLabel, prettyDate, SLOT_KEYS } from "../../utils.js";
+import { rs, todayIso, addDays, dayLabel, prettyDate, SLOT_KEYS, slotLabel } from "../../utils.js";
 
 // Steps: lab list -> test picker -> details -> booked
 // "1 Lab → 2 Test → 3 Pata aur din" so the patient always knows how far along they are.
@@ -144,7 +144,7 @@ function TestPick({ lab, cart, setCart, onBack, onNext }) {
       <QueryState query={tests} empty={t("tests.none")}>
         {(d) => {
           const needle = q.trim().toLowerCase();
-          const list = d.data.filter((x) => !needle || `${x.name} ${testHint(x.name, "hi")} ${testHint(x.name, "en")} ${testHint(x.name, "hd")}`.toLowerCase().includes(needle));
+          const list = d.data.filter((x) => !needle || `${x.name} ${testHint(x.name, "hi")} ${testHint(x.name, "en")} ${testHint(x.name, "roman")}`.toLowerCase().includes(needle));
           if (!list.length) return <p className="muted">{t("tests.none")}</p>;
           return (
             <div className="test-list">
@@ -237,7 +237,7 @@ function Details({ lab, cart, onBack, onDone }) {
         familyMemberId: f.familyMemberId || undefined,
         address: f.address,
         date: f.date,
-        slot: t(f.slot),
+        slot: f.slot,
         paymentMode: f.paymentMode,
         consent: true,
       });
@@ -318,7 +318,7 @@ function Details({ lab, cart, onBack, onDone }) {
         <div className="pill-row" role="radiogroup">
           {SLOT_KEYS.map((s) => (
             <button type="button" role="radio" aria-checked={f.slot === s} key={s} className={`pill ${f.slot === s ? "on" : ""}`} onClick={() => setF({ ...f, slot: s })}>
-              {t(s)}
+              {slotLabel(s)}
             </button>
           ))}
         </div>
@@ -388,7 +388,7 @@ function Booked({ booking }) {
         <div className="muted small">{t("booked.otpHint")}</div>
       </div>
       <p className="muted">
-        {t("booked.next", { lab: booking.lab?.name })} {prettyDate(booking.date)}, {booking.slot}.
+        {t("booked.next", { lab: booking.lab?.name })} {prettyDate(booking.date)}, {slotLabel(booking.slot)}.
       </p>
       <Steps status={booking.status} />
       <Link className="primary-btn" to="/meri-booking">

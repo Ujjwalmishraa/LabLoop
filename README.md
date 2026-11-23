@@ -1,11 +1,17 @@
-# NidaanSetu
+# LabLoop
 
-*Nidaan* (diagnosis) + *Setu* (bridge). NidaanSetu connects village patients in Siwan district (Bihar) with nearby pathology labs and doctors, so they don't have to travel to the market town.
+**Lab tests, looped to your doorstep.** · **जाँच, आपके द्वार**
+
+LabLoop connects village patients in Siwan district (Bihar) with nearby pathology labs and doctors, so they don't have to travel to the market town.
 
 - Patients book blood/urine tests. The partner lab's collector takes the sample at home (patient gives a 4-digit OTP) and uploads the report.
 - Patients see nearby doctors (days, timing, fee) and take a token number.
 - Doctors refer lab tests to a partner lab from inside the app.
-- The NidaanSetu team (super admin + field agents) onboards labs and doctors.
+- The LabLoop team (super admin + field agents) onboards labs and doctors.
+
+The whole app (all five roles, server error messages and emails) runs in Hindi or English from one switch in the header. `npm run i18n:check` checks the two dictionaries match and flags hard-coded text.
+
+> Internal names (repo, packages, database `nidaansetu`, cookie `ns_refresh`, env vars, booking codes `NS…`) are unchanged from the earlier name, NidaanSetu.
 
 **Stack:** MongoDB · Express 5 · React 19 (Vite) · Node 20+, with zod, JWT + rotating refresh cookies, TanStack Query, Jest + Supertest, Playwright.
 

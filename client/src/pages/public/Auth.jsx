@@ -5,11 +5,12 @@ import { Header, Field, ErrorMsg, Ok, Back } from "../../components/ui.jsx";
 import { useT } from "../../i18n/I18nContext.jsx";
 import { useAuth, HOME_FOR } from "../../auth/AuthContext.jsx";
 import { errorMessage, fieldErrors, post } from "../../api/client.js";
+import { roleLabel } from "../../utils.js";
 
 function Shell({ children }) {
   return (
     <div className="app auth-page">
-      <Header showLang />
+      <Header />
       <div className="auth-hero" aria-hidden="true">
         <div className="auth-hero-art">
           <VillageScene label="" />
@@ -64,7 +65,7 @@ export function Signup() {
       <form className="card" onSubmit={submit} noValidate>
         <h1 className="big-title">{t("auth.signupTitle")}</h1>
         <Field label={t("auth.name")} error={errs.name}>
-          <input value={f.name} onChange={set("name")} autoComplete="name" placeholder="Ram Prasad" />
+          <input value={f.name} onChange={set("name")} autoComplete="name" placeholder={t("auth.namePh")} />
         </Field>
         <Field label={t("auth.mobile")} error={errs.phone}>
           <input value={f.phone} onChange={set("phone")} inputMode="numeric" maxLength={10} autoComplete="tel-national" placeholder="98XXXXXXXX" />
@@ -91,12 +92,11 @@ export function Signup() {
 // their own dashboard); "/login/:portal" only accepts that portal's role. The server enforces
 // permissions either way; this just keeps each group on its own door.
 export const PORTALS = {
-  lab: { roles: ["lab_staff"], icon: "🧪", title: "Lab login", hint: "Agent ne jo email aur password diya, usse login karein." },
-  doctor: { roles: ["doctor"], icon: "🩺", title: "Doctor login", hint: "Agent ne jo email aur password diya, usse login karein." },
-  agent: { roles: ["agent"], icon: "🧑‍💼", title: "Field agent login", hint: "Admin ne jo email aur password diya, usse login karein." },
-  admin: { roles: ["super_admin"], icon: "🛠️", title: "Admin login", hint: "" },
+  lab: { roles: ["lab_staff"], icon: "🧪", title: "portal.lab", hint: "portal.hintAgent" },
+  doctor: { roles: ["doctor"], icon: "🩺", title: "portal.doctor", hint: "portal.hintAgent" },
+  agent: { roles: ["agent"], icon: "🧑‍💼", title: "portal.agent", hint: "portal.hintAdmin" },
+  admin: { roles: ["super_admin"], icon: "🛠️", title: "portal.admin", hint: "" },
 };
-const ROLE_PORTAL = { lab_staff: "Lab", doctor: "Doctor", agent: "Agent", super_admin: "Admin", patient: "Mareez" };
 
 export function Login() {
   const { t } = useT();
@@ -124,8 +124,7 @@ export function Login() {
       nav(next && next.startsWith(home) ? next : home, { replace: true });
     } catch (e2) {
       if (e2.message === "WRONG_PORTAL") {
-        const r = ROLE_PORTAL[e2.role];
-        setErr(`Yeh ${portal.title} hai. Aapka account ${r} ka hai, ${r} login se aayein.`);
+        setErr(t("portal.wrong", { portal: t(portal.title), role: roleLabel(e2.role) }));
       } else setErr(errorMessage(e2));
     } finally {
       setBusy(false);
@@ -141,9 +140,9 @@ export function Login() {
             {portal.icon}
           </div>
         )}
-        <h1 className="big-title">{portal ? portal.title : t("auth.loginTitle")}</h1>
-        {portal?.hint && <p className="muted">{portal.hint}</p>}
-        <Field label={portal ? "Email" : t("auth.idLabel")}>
+        <h1 className="big-title">{portal ? t(portal.title) : t("auth.loginTitle")}</h1>
+        {portal?.hint && <p className="muted">{t(portal.hint)}</p>}
+        <Field label={portal ? t("auth.email") : t("auth.idLabel")}>
           <input value={f.identifier} onChange={(e) => setF({ ...f, identifier: e.target.value })} autoComplete="username" />
         </Field>
         <Field label={t("auth.password")}>

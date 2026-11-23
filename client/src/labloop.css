@@ -1,0 +1,112 @@
+/* ==========================================================================
+   LabLoop theme. Loaded after styles.css, so these tokens win.
+   Contrast (WCAG AA, 4.5:1 for body text):
+     --text   #17212b on --bg #f6f9f8 ≈ 15.6:1, on --surface #fff ≈ 16.4:1
+     --muted  #4d5b67 on --bg ≈ 6.6:1,           on --surface ≈ 6.9:1
+     white on --brand #0b8276 ≈ 4.7:1 (buttons), white on --brand-dark ≈ 6.9:1
+   --brand-bright (#0e9f8e) is the logo/decor teal; it is not used behind small text.
+   Fonts: system stacks only (no CDN), Devanagari falls back to the OS font
+   (Kohinoor/Devanagari Sangam on Apple, Noto Sans Devanagari on Android, Nirmala UI on Windows).
+   ========================================================================== */
+:root {
+  --brand: #0b8276;
+  --brand-bright: #0e9f8e;
+  --brand-dark: #08645b;
+  --brand-soft: #e3f4f1;
+  --accent: #f59e0b;
+  --accent-ink: #8a4b00;
+  --accent-soft: #fff4dc;
+  --bg: #f6f9f8;
+  --surface: #ffffff;
+  --text: #17212b;
+  --muted: #4d5b67;
+  --line: #e1e8e6;
+  --ok: #157f3c;
+  --ok-soft: #e4f6ea;
+  --warn: #9a5b00;
+  --warn-soft: #fff4dc;
+  --danger: #b42318;
+  --danger-soft: #fde8e6;
+  --radius: 14px;
+  --shadow: 0 1px 2px rgba(16, 42, 38, 0.05), 0 6px 18px rgba(16, 42, 38, 0.07);
+  --shadow-lg: 0 16px 40px rgba(11, 130, 118, 0.16);
+  --grad: linear-gradient(135deg, #0b8276 0%, #0e9f8e 60%, #12b5a0 100%);
+  --font: system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans", "Noto Sans Devanagari", "Nirmala UI", "Kohinoor Devanagari", sans-serif;
+  --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
+  --head-font: var(--font);
+  /* old names used across styles.css */
+  --ink: var(--text);
+  --card: var(--surface);
+  --t-teal: #0b8276;
+  --t-teal-bg: #e3f4f1;
+}
+
+body {
+  font-family: var(--font);
+  font-size: 17px;
+  color: var(--text);
+  background: var(--bg);
+}
+
+/* ---------- logo / brand ---------- */
+.logo-mark { color: var(--brand-bright); flex: none; display: block; }
+.topbar .logo-mark,
+.lp-band .logo-mark { color: #fff; }
+.brand-name { font-weight: 800; letter-spacing: -0.02em; }
+.brand-name span { color: var(--accent); }
+.topbar .brand-name span { color: #ffd27a; }
+.brand-tag { font-size: 13px; }
+
+/* ---------- language switch (हिंदी | English) ---------- */
+.lang-switch {
+  display: inline-flex; align-items: center; padding: 3px; gap: 2px;
+  border-radius: 999px; background: rgba(255, 255, 255, 0.16); border: 1px solid rgba(255, 255, 255, 0.35);
+}
+.lang-switch button {
+  min-height: 36px; min-width: 64px; padding: 4px 12px; border: 0; border-radius: 999px;
+  background: transparent; color: inherit; font-weight: 700; font-size: 15px; cursor: pointer;
+}
+.lang-switch button[aria-pressed="true"] { background: #fff; color: var(--brand-dark); }
+.lang-switch.on-light { background: var(--brand-soft); border-color: #c4e6df; color: var(--brand-dark); }
+.lang-switch.on-light button[aria-pressed="true"] { background: var(--brand); color: #fff; }
+.lang-switch button:focus-visible { outline: 3px solid var(--accent); outline-offset: 1px; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
+}
+
+/* ---------- landing ---------- */
+.ll-landing .topbar { background: var(--brand); }
+.ll-hero { background: var(--grad); color: #fff; padding: 36px 0 44px; text-align: center; }
+.ll-hero-inner { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.ll-hero-mark { background: #fff; border-radius: 28px; padding: 10px; box-shadow: var(--shadow-lg); }
+.ll-hero-mark .logo-mark { color: var(--brand-bright); }
+.ll-hero .lp-eyebrow { background: rgba(255, 255, 255, 0.18); color: #fff; border: 0; margin-top: 10px; }
+.ll-hero h1 { font-size: clamp(38px, 9vw, 60px); margin: 4px 0 0; color: #fff; }
+.ll-hero h1 .brand-name span { color: #ffd27a; }
+.ll-tagline { font-size: clamp(20px, 4.5vw, 26px); font-weight: 700; margin: 0; }
+.ll-hero .lp-lead { color: rgba(255, 255, 255, 0.92); max-width: 560px; font-size: 18px; }
+.ll-cta { display: grid; gap: 10px; width: 100%; max-width: 420px; margin-top: 8px; }
+.ll-cta .ll-big { min-height: 60px; font-size: 20px; margin: 0; }
+.ll-cta .primary-btn { background: #fff; color: var(--brand-dark); border-color: #fff; }
+.ll-cta .primary-btn:hover { background: var(--brand-soft); }
+.ll-cta .secondary-btn { background: transparent; color: #fff; border-color: rgba(255, 255, 255, 0.8); }
+.ll-have-account { margin: 6px 0 0; font-size: 16px; }
+.ll-have-account .link-btn { color: #fff; }
+@media (min-width: 640px) { .ll-cta { grid-template-columns: 1fr 1fr; max-width: 560px; } }
+
+.ll-steps { list-style: none; padding: 0; margin: 12px 0 20px; display: grid; gap: 12px; grid-template-columns: 1fr; }
+@media (min-width: 720px) { .ll-steps { grid-template-columns: repeat(3, 1fr); } }
+.ll-steps li { position: relative; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); padding: 18px; display: grid; grid-template-columns: 72px 1fr; gap: 4px 14px; align-items: start; }
+.ll-step-art { grid-row: span 2; width: 72px; height: 72px; display: grid; place-items: center; }
+.ll-step-art svg { width: 72px; height: 72px; }
+.ll-step-no { position: absolute; top: 10px; right: 14px; font-size: 28px; font-weight: 800; color: var(--brand-soft); }
+.ll-steps strong { font-size: 19px; color: var(--brand-dark); }
+.ll-steps p { margin: 0; color: var(--muted); font-size: 16px; }
+
+.ll-badges { list-style: none; padding: 0; margin: 4px 0 24px; display: grid; gap: 10px; grid-template-columns: 1fr; }
+@media (min-width: 720px) { .ll-badges { grid-template-columns: repeat(3, 1fr); } }
+.ll-badges li { display: flex; gap: 12px; align-items: center; padding: 14px 16px; border-radius: var(--radius); background: var(--brand-soft); }
+.ll-badge-icon { width: 44px; height: 44px; flex: none; border-radius: 12px; display: grid; place-items: center; background: var(--brand); color: #fff; }
+.ll-badges strong { display: block; font-size: 17px; }
+.ll-badges small { color: var(--muted); font-size: 15px; }

@@ -1,3 +1,4 @@
+import { translateError } from "../lib/i18n.js";
 import rateLimit, { ipKeyGenerator } from "express-rate-limit";
 import { env } from "../config/env.js";
 
@@ -30,7 +31,7 @@ function limiter({ windowMin, max, message, ...extra }) {
     standardHeaders: "draft-7",
     legacyHeaders: false,
     skip: () => !env.rateLimitEnabled,
-    handler: (_req, res) => res.status(429).json({ error: { code: "RATE_LIMITED", message } }),
+    handler: (req, res) => res.status(429).json({ error: { code: "RATE_LIMITED", message: translateError(req.lang || "hi", "RATE_LIMITED", message) } }),
   });
 }
 

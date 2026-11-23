@@ -39,36 +39,74 @@ export async function sendMail({ to, subject, text }) {
   }
 }
 
-export function credentialsMail({ name, email, password, role }) {
-  const roleHi = { lab_staff: "Lab", doctor: "Doctor", agent: "Field agent" }[role] || role;
-  return {
-    to: email,
-    subject: "NidaanSetu login details",
-    text: `Namaste ${name},
+// Emails go out in the user's language (User.lang): hi = Hindi, en = English.
+const ROLE = {
+  hi: { lab_staff: "लैब", doctor: "डॉक्टर", agent: "फ़ील्ड एजेंट", super_admin: "एडमिन" },
+  en: { lab_staff: "Lab", doctor: "Doctor", agent: "Field agent", super_admin: "Admin" },
+};
 
-Aapka NidaanSetu ${roleHi} account ban gaya hai.
+export function credentialsMail({ name, email, password, role, lang = "hi" }) {
+  const roleName = ROLE[lang]?.[role] || role;
+  if (lang === "en") {
+    return {
+      to: email,
+      subject: "LabLoop login details",
+      text: `Hello ${name},
+
+Your LabLoop ${roleName} account is ready.
 
 Login ID (email): ${email}
 Temporary password: ${password}
 
 Login: ${env.CLIENT_ORIGIN}/login
-Pehli baar login karne par naya password banana hoga.
+You will be asked to set a new password the first time you log in.
 
-- NidaanSetu team`,
+- LabLoop team`,
+    };
+  }
+  return {
+    to: email,
+    subject: "LabLoop लॉगिन जानकारी",
+    text: `नमस्ते ${name},
+
+आपका LabLoop ${roleName} अकाउंट बन गया है।
+
+लॉगिन ID (ईमेल): ${email}
+अस्थायी पासवर्ड: ${password}
+
+लॉगिन: ${env.CLIENT_ORIGIN}/login
+पहली बार लॉगिन करने पर नया पासवर्ड बनाना होगा।
+
+- LabLoop टीम`,
   };
 }
 
-export function resetMail({ name, email, token }) {
+export function resetMail({ name, email, token, lang = "hi" }) {
+  const link = `${env.CLIENT_ORIGIN}/reset-password?token=${token}`;
+  if (lang === "en") {
+    return {
+      to: email,
+      subject: "LabLoop password reset",
+      text: `Hello ${name},
+
+Open this link to change your password (valid for 30 minutes):
+${link}
+
+If you did not ask for this, you can ignore this email.
+
+- LabLoop team`,
+    };
+  }
   return {
     to: email,
-    subject: "NidaanSetu password reset",
-    text: `Namaste ${name},
+    subject: "LabLoop पासवर्ड रीसेट",
+    text: `नमस्ते ${name},
 
-Password badalne ke liye yeh link kholein (30 minute tak chalega):
-${env.CLIENT_ORIGIN}/reset-password?token=${token}
+पासवर्ड बदलने के लिए यह लिंक खोलें (30 मिनट तक चलेगा):
+${link}
 
-Agar aapne yeh nahi maanga tha, toh is email ko ignore karein.
+अगर आपने यह नहीं माँगा था, तो इस ईमेल को अनदेखा करें।
 
-- NidaanSetu team`,
+- LabLoop टीम`,
   };
 }

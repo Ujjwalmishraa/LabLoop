@@ -14,4 +14,4 @@ try {
 
 if (env.cronEnabled) scheduleSettlementJob();
 
-createApp().listen(env.PORT, () => console.log(`NidaanSetu API on http://localhost:${env.PORT} (${env.NODE_ENV})`));
+createApp().listen(env.PORT, () => console.log(`LabLoop API on http://localhost:${env.PORT} (${env.NODE_ENV})`));

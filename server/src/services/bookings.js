@@ -114,7 +114,7 @@ export async function createBooking(req, input) {
 }
 
 const otpLockedError = () =>
-  new AppError(423, "OTP_LOCKED", "Bahut baar galat OTP. Booking lock ho gayi, NidaanSetu team se sampark karein.");
+  new AppError(423, "OTP_LOCKED", "Bahut baar galat OTP. Booking lock ho gayi, LabLoop team se sampark karein.");
 
 // Checks the collection OTP. Locks the booking after OTP_MAX_ATTEMPTS wrong tries.
 export async function verifyOtp(booking, otp) {

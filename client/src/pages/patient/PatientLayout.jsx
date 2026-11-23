@@ -12,11 +12,11 @@ export default function PatientLayout() {
   if (!user.village && loc.pathname !== "/village") return <Navigate to="/village" replace />;
   return (
     <div className="app patient">
-      <Header showLang />
+      <Header />
       <main className="container narrow with-nav">
         <Outlet />
       </main>
-      <nav className="bottom-nav" aria-label="Main">
+      <nav className="bottom-nav" aria-label={t("nav.main")}>
         <NavLink to="/home"><Icon name="home" size={24} /><span>{t("common.home")}</span></NavLink>
         <NavLink to="/jaanch"><Icon name="flask" size={24} /><span>{t("mine.tabTests")}</span></NavLink>
         <NavLink to="/doctors"><Icon name="steth" size={24} /><span>{t("nav.doctor")}</span></NavLink>

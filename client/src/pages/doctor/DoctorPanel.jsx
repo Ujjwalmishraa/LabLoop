@@ -99,7 +99,7 @@ function ApptCard({ a }) {
           {a.patient?.phone}
         </a>
       </p>
-      {a.visitLocked && <p className="error">Galat code 5 baar daala gaya. Yeh number lock hai, NidaanSetu team ko batayein.</p>}
+      {a.visitLocked && <p className="error">Galat code 5 baar daala gaya. Yeh number lock hai, LabLoop team ko batayein.</p>}
       {a.referredBooking && (
         <div className="info">
           Lab test likha: {a.referredBooking.items.map((i) => i.name).join(", ")} → {a.referredBooking.lab?.name} <Badge status={a.referredBooking.status} />

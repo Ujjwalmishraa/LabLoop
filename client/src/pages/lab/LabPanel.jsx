@@ -4,7 +4,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { get, patch, upload, errorMessage } from "../../api/client.js";
 import { useAuth } from "../../auth/AuthContext.jsx";
 import { PanelShell, Badge, ErrorMsg, Field, Pager, QueryState, Stat } from "../../components/ui.jsx";
-import { rs, prettyDate, prettyDateTime, LAB_SLOTS } from "../../utils.js";
+import { rs, prettyDate, prettyDateTime, LAB_SLOTS, slotLabel } from "../../utils.js";
 
 const FLOW = [
   { key: "requested", label: "Nayi request", icon: "inbox" },
@@ -55,7 +55,7 @@ function BookingList({ status }) {
 
 function LabCard({ b }) {
   const qc = useQueryClient();
-  const [time, setTime] = useState(LAB_SLOTS.find((s) => b.slot?.startsWith(s.slice(0, 8))) || LAB_SLOTS[0]);
+  const [time, setTime] = useState(LAB_SLOTS.includes(b.slot) ? b.slot : LAB_SLOTS[0]);
   const [otp, setOtp] = useState("");
   const [payMode, setPayMode] = useState(b.payment?.mode === "upi" ? "upi" : "cash");
   const [file, setFile] = useState(null);
@@ -111,7 +111,7 @@ function LabCard({ b }) {
         <Icon name="flask" size={17} /> {b.items.map((i) => i.name).join(", ")}
       </p>
       <p className="meta">
-        <Icon name="calendar" size={17} /> {prettyDate(b.date)} · {b.collectionTime || b.slot}
+        <Icon name="calendar" size={17} /> {prettyDate(b.date)} · {slotLabel(b.collectionTime || b.slot)}
       </p>
       <div className="row-between">
         <span className="muted">
@@ -163,7 +163,7 @@ function LabCard({ b }) {
       {b.status === "confirmed" && (
         <div className="actions">
           {b.otpLocked ? (
-            <p className="error">OTP 5 baar galat hua, booking lock hai. NidaanSetu team ko call karein.</p>
+            <p className="error">OTP 5 baar galat hua, booking lock hai. LabLoop team ko call karein.</p>
           ) : (
             <>
               <Field label="Patient se OTP lekar daalein">

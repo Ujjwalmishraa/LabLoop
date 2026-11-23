@@ -1,4 +1,5 @@
 import axios from "axios";
+import { getLang, t } from "../i18n/I18nContext.jsx";
 
 const BASE = (import.meta.env.VITE_API_URL || "").replace(/\/$/, "");
 
@@ -12,6 +13,8 @@ export const http = axios.create({ baseURL: `${BASE}/api/v1`, withCredentials: t
 
 http.interceptors.request.use((config) => {
   if (accessToken) config.headers.Authorization = `Bearer ${accessToken}`;
+  // Server error messages, emails and labels follow the language picked in the app.
+  config.headers["Accept-Language"] = getLang();
   return config;
 });
 
@@ -19,7 +22,7 @@ http.interceptors.request.use((config) => {
 let refreshing = null;
 export function refreshSession() {
   refreshing ??= axios
-    .post(`${BASE}/api/v1/auth/refresh`, {}, { withCredentials: true })
+    .post(`${BASE}/api/v1/auth/refresh`, {}, { withCredentials: true, headers: { "Accept-Language": getLang() } })
     .then((r) => {
       setAccessToken(r.data.accessToken);
       return r.data;
@@ -51,10 +54,10 @@ http.interceptors.response.use(
 );
 
 // Server errors are { error: { code, message } }
-export function errorMessage(e, fallback = "Kuch galat hua, dobara koshish karein") {
+export function errorMessage(e, fallback) {
   if (e?.response?.data?.error?.message) return e.response.data.error.message;
-  if (e?.code === "ECONNABORTED" || e?.message === "Network Error") return "Internet nahi chal raha. Dobara koshish karein.";
-  return fallback;
+  if (e?.code === "ECONNABORTED" || e?.message === "Network Error") return t("err.network");
+  return fallback || t("err.generic");
 }
 export const errorCode = (e) => e?.response?.data?.error?.code;
 

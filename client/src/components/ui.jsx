@@ -1,42 +1,43 @@
 import { cloneElement, isValidElement, useId, useState } from "react";
 import { Link, useNavigate } from "react-router";
-import { Icon, Logo } from "./Icons.jsx";
+import { Icon } from "./Icons.jsx";
+import { Logo, BrandName } from "./Logo.jsx";
 import { useAuth } from "../auth/AuthContext.jsx";
 import { useT, LANGS } from "../i18n/I18nContext.jsx";
 import { STATUS_COLOR, STEPS } from "../utils.js";
 import { errorMessage } from "../api/client.js";
 
-export function Header({ title, subtitle, showLang = false, children }) {
-  const { user, logout } = useAuth();
+// हिंदी | English: one switch that drives every screen, number, date and server message.
+export function LangSwitch({ light = false }) {
   const { t, lang, setLang } = useT();
+  return (
+    <div className={`lang-switch ${light ? "on-light" : ""}`} role="group" aria-label={t("lang.label")} data-testid="lang-switch">
+      {LANGS.map((l) => (
+        <button key={l.code} type="button" lang={l.code} aria-pressed={lang === l.code} onClick={() => setLang(l.code)}>
+          {l.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+export function Header({ title, subtitle, children }) {
+  const { user, logout } = useAuth();
+  const { t } = useT();
   const nav = useNavigate();
   return (
     <header className="topbar">
-      <Link to="/" className="brand" aria-label="NidaanSetu home">
+      <Link to="/" className="brand" aria-label={t("brand.home")}>
         <Logo size={40} />
         <div>
-          <div className="brand-name">
-            Nidaan<span>Setu</span>
-          </div>
+          <BrandName />
           <div className="brand-tag">{subtitle || t("brand.tag")}</div>
         </div>
       </Link>
       <div className="topbar-right">
         {children}
         {title && <span className="role-chip">{title}</span>}
-        {showLang && (
-          <label className="chip-btn lang-pick">
-            <Icon name="globe" size={18} />
-            <span className="sr-only">{t("lang.label")}</span>
-            <select value={lang} onChange={(e) => setLang(e.target.value)} aria-label="Bhasha / Language">
-              {LANGS.map((l) => (
-                <option key={l.code} value={l.code}>
-                  {l.label}
-                </option>
-              ))}
-            </select>
-          </label>
-        )}
+        <LangSwitch />
         {user && (
           <button
             className="chip-btn"
@@ -58,6 +59,7 @@ export function Header({ title, subtitle, showLang = false, children }) {
 // `tabs` is the same shape the old <Tabs> took, so panels keep their own tab state.
 export function PanelShell({ role, tabs, value, onChange, actions, children }) {
   const { user, logout } = useAuth();
+  const { t: tr } = useT();
   const nav = useNavigate();
   const current = tabs.find((t) => t.key === value) || tabs[0];
   const initials = (user?.name || "?")
@@ -74,20 +76,18 @@ export function PanelShell({ role, tabs, value, onChange, actions, children }) {
     <div className="app panel dash">
       <aside className="side">
         <div className="side-top">
-          <Link to="/" className="brand" aria-label="NidaanSetu home">
+          <Link to="/" className="brand" aria-label={tr("brand.home")}>
             <Logo size={34} />
             <div>
-              <div className="brand-name">
-                Nidaan<span>Setu</span>
-              </div>
+              <BrandName />
               <div className="brand-tag">{role}</div>
             </div>
           </Link>
-          <button className="icon-btn side-logout-sm" onClick={doLogout} aria-label="Logout">
+          <button className="icon-btn side-logout-sm" onClick={doLogout} aria-label={tr("common.logout")}>
             <Icon name="logout" size={18} />
           </button>
         </div>
-        <nav className="side-nav" aria-label="Dashboard sections">
+        <nav className="side-nav" aria-label={tr("panel.sections")}>
           {tabs.map((t) => (
             <button
               key={t.key}
@@ -110,7 +110,7 @@ export function PanelShell({ role, tabs, value, onChange, actions, children }) {
             <strong>{user?.name}</strong>
             <small>{role}</small>
           </div>
-          <button className="icon-btn" onClick={doLogout} aria-label="Logout" title="Logout">
+          <button className="icon-btn" onClick={doLogout} aria-label={tr("common.logout")} title={tr("common.logout")}>
             <Icon name="logout" size={18} />
           </button>
         </div>
@@ -123,7 +123,10 @@ export function PanelShell({ role, tabs, value, onChange, actions, children }) {
             </div>
             <h1>{current?.label}</h1>
           </div>
-          {actions && <div className="page-actions">{actions}</div>}
+          <div className="page-actions">
+            {actions}
+            <LangSwitch light />
+          </div>
         </header>
         <main className="dash-body">{children}</main>
       </div>
@@ -185,7 +188,7 @@ export function Steps({ status }) {
   if (status === "cancelled") return <Badge status="cancelled" />;
   const idx = STEPS.indexOf(status);
   return (
-    <ol className="steps" aria-label="Booking status">
+    <ol className="steps" aria-label={t("steps.label")}>
       {STEPS.map((s, i) => (
         <li key={s} className={i <= idx ? "done" : ""} aria-current={i === idx ? "step" : undefined}>
           <span className="dot">{i <= idx ? "✓" : i + 1}</span>
@@ -255,17 +258,18 @@ export function QueryState({ query, empty, emptyIcon, isEmpty, children }) {
 }
 
 export function Pager({ meta, onPage }) {
+  const { t } = useT();
   if (!meta || meta.pages <= 1) return null;
   return (
     <div className="pager">
       <button className="secondary-btn small" disabled={meta.page <= 1} onClick={() => onPage(meta.page - 1)}>
-        ← Pichla
+        {t("pager.prev")}
       </button>
       <span>
         {meta.page} / {meta.pages} <span className="muted small">({meta.total})</span>
       </span>
       <button className="secondary-btn small" disabled={meta.page >= meta.pages} onClick={() => onPage(meta.page + 1)}>
-        Agla →
+        {t("pager.next")}
       </button>
     </div>
   );
@@ -319,7 +323,8 @@ export async function copyText(text) {
   }
 }
 
-export function CopyButton({ text, label = "Copy", className = "" }) {
+export function CopyButton({ text, label, className = "" }) {
+  const { t } = useT();
   const [state, setState] = useState("idle");
   return (
     <button
@@ -330,28 +335,29 @@ export function CopyButton({ text, label = "Copy", className = "" }) {
         setTimeout(() => setState("idle"), 1800);
       }}
     >
-      {state === "done" ? "✓ Copy ho gaya" : state === "fail" ? "Copy nahi hua" : `⧉ ${label}`}
+      {state === "done" ? t("copy.done") : state === "fail" ? t("copy.fail") : `⧉ ${label || t("copy.label")}`}
     </button>
   );
 }
 
 export function TempPassword({ email, password }) {
+  const { t } = useT();
   if (!password) return null;
   return (
     <div className="temp-pass" role="status">
-      <strong>Login ban gaya ✓</strong>
+      <strong>{t("temp.created")}</strong>
       <div className="cred-row">
-        <span className="cred-label">Email</span>
+        <span className="cred-label">{t("auth.email")}</span>
         <code>{email}</code>
         <CopyButton text={email} />
       </div>
       <div className="cred-row">
-        <span className="cred-label">Password</span>
+        <span className="cred-label">{t("auth.password")}</span>
         <code className="big-code">{password}</code>
         <CopyButton text={password} />
       </div>
-      <CopyButton className="primary" text={`Login ID: ${email}\nPassword: ${password}`} label="Dono copy karein (WhatsApp pe bhejne ke liye)" />
-      <p className="small">Yeh password sirf ek baar dikhega. Email bhi bhej diya gaya hai. Pehli baar login pe naya password banana hoga.</p>
+      <CopyButton className="primary" text={`Login ID: ${email}\nPassword: ${password}`} label={t("temp.copyBoth")} />
+      <p className="small">{t("temp.note")}</p>
     </div>
   );
 }

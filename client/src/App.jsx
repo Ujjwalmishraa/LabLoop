@@ -13,8 +13,12 @@ import LabPanel from "./pages/lab/LabPanel.jsx";
 import DoctorPanel from "./pages/doctor/DoctorPanel.jsx";
 import AgentPanel from "./pages/agent/AgentPanel.jsx";
 import AdminPanel from "./pages/admin/AdminPanel.jsx";
+import { useT } from "./i18n/I18nContext.jsx";
 
 export default function App() {
+  // Subscribing here re-renders the whole tree when the language changes, so helpers that
+  // format with the current language (utils.js) update everywhere at once.
+  useT();
   return (
     <Routes>
       <Route element={<GuestOnly />}>
