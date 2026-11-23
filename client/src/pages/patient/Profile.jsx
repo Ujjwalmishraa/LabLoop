@@ -34,10 +34,10 @@ export default function Profile() {
         <Field label={t("auth.name")}>
           <input value={name} onChange={(e) => setName(e.target.value)} />
         </Field>
-        <Field label={t("auth.mobile")} hint="Mobile number badalne ke liye NidaanSetu agent se sampark karein">
+        <Field label={t("auth.mobile")} hint={t("profile.mobileHint")}>
           <input value={user.phone} disabled />
         </Field>
-        <Field label={`${t("auth.email")} ${t("common.optional")}`} hint="Password bhoolne par email se link aayega">
+        <Field label={`${t("auth.email")} ${t("common.optional")}`} hint={t("profile.emailHint")}>
           <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
         </Field>
         <p>
@@ -73,7 +73,7 @@ function Family() {
 
   async function add(e) {
     e.preventDefault();
-    if (f.name.trim().length < 2) return setErrs({ name: "Naam likhein" });
+    if (f.name.trim().length < 2) return setErrs({ name: t("err.name") });
     try {
       await post("/me/family", { name: f.name, relation: f.relation || undefined, gender: f.gender || undefined, age: f.age ? Number(f.age) : undefined });
       setF(blank);

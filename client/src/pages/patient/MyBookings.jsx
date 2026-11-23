@@ -96,15 +96,23 @@ function BookingCard({ b }) {
       {b.source === "doctor" && b.referredBy && <div className="chip ref">{t("mine.referred", { doctor: b.referredBy.name })}</div>}
       <Steps status={b.status} />
       {b.otp && (
-        <p className="info">
-          {b.status === "confirmed" && b.collectionTime && (
-            <>
-              {t("mine.collector", { time: b.collectionTime })}
-              <br />
-            </>
-          )}
-          <strong data-testid="mine-otp">{t("mine.otp", { otp: b.otp })}</strong>
-        </p>
+        <div className="otp-card">
+          <div>
+            <span className="otp-label">{t("booked.otp")}</span>
+            <strong className="otp-digits" data-testid="mine-otp">
+              {b.otp}
+            </strong>
+          </div>
+          <p className="small">
+            {b.status === "confirmed" && b.collectionTime && (
+              <>
+                {t("mine.collector", { time: b.collectionTime })}
+                <br />
+              </>
+            )}
+            {t("booked.otpHint")}
+          </p>
+        </div>
       )}
       {b.otpLocked && <p className="error">{t("mine.locked")}</p>}
       <div className="row-between wrap">

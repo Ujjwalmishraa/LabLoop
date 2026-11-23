@@ -2,13 +2,13 @@ import { cloneElement, isValidElement, useId, useState } from "react";
 import { Link, useNavigate } from "react-router";
 import { Icon, Logo } from "./Icons.jsx";
 import { useAuth } from "../auth/AuthContext.jsx";
-import { useT } from "../i18n/I18nContext.jsx";
+import { useT, LANGS } from "../i18n/I18nContext.jsx";
 import { STATUS_COLOR, STEPS } from "../utils.js";
 import { errorMessage } from "../api/client.js";
 
 export function Header({ title, subtitle, showLang = false, children }) {
   const { user, logout } = useAuth();
-  const { t, toggle } = useT();
+  const { t, lang, setLang } = useT();
   const nav = useNavigate();
   return (
     <header className="topbar">
@@ -25,10 +25,17 @@ export function Header({ title, subtitle, showLang = false, children }) {
         {children}
         {title && <span className="role-chip">{title}</span>}
         {showLang && (
-          <button className="chip-btn" onClick={toggle} aria-label="Change language">
+          <label className="chip-btn lang-pick">
             <Icon name="globe" size={18} />
-            {t("lang.switch")}
-          </button>
+            <span className="sr-only">{t("lang.label")}</span>
+            <select value={lang} onChange={(e) => setLang(e.target.value)} aria-label="Bhasha / Language">
+              {LANGS.map((l) => (
+                <option key={l.code} value={l.code}>
+                  {l.label}
+                </option>
+              ))}
+            </select>
+          </label>
         )}
         {user && (
           <button
@@ -44,6 +51,83 @@ export function Header({ title, subtitle, showLang = false, children }) {
         )}
       </div>
     </header>
+  );
+}
+
+// Staff dashboard shell: sidebar navigation on desktop, compact top bar + scrollable nav on phones.
+// `tabs` is the same shape the old <Tabs> took, so panels keep their own tab state.
+export function PanelShell({ role, tabs, value, onChange, actions, children }) {
+  const { user, logout } = useAuth();
+  const nav = useNavigate();
+  const current = tabs.find((t) => t.key === value) || tabs[0];
+  const initials = (user?.name || "?")
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((w) => w[0].toUpperCase())
+    .join("");
+  const doLogout = async () => {
+    await logout();
+    nav("/", { replace: true });
+  };
+  return (
+    <div className="app panel dash">
+      <aside className="side">
+        <div className="side-top">
+          <Link to="/" className="brand" aria-label="NidaanSetu home">
+            <Logo size={34} />
+            <div>
+              <div className="brand-name">
+                Nidaan<span>Setu</span>
+              </div>
+              <div className="brand-tag">{role}</div>
+            </div>
+          </Link>
+          <button className="icon-btn side-logout-sm" onClick={doLogout} aria-label="Logout">
+            <Icon name="logout" size={18} />
+          </button>
+        </div>
+        <nav className="side-nav" aria-label="Dashboard sections">
+          {tabs.map((t) => (
+            <button
+              key={t.key}
+              type="button"
+              className={`side-link ${value === t.key ? "on" : ""}`}
+              aria-current={value === t.key ? "page" : undefined}
+              onClick={() => onChange(t.key)}
+            >
+              {t.icon && <Icon name={t.icon} size={18} />}
+              <span className="side-label">{t.label}</span>
+              {t.count !== undefined && <span className="side-count">{t.count}</span>}
+            </button>
+          ))}
+        </nav>
+        <div className="side-user">
+          <span className="avatar" aria-hidden="true">
+            {initials}
+          </span>
+          <div className="side-user-text">
+            <strong>{user?.name}</strong>
+            <small>{role}</small>
+          </div>
+          <button className="icon-btn" onClick={doLogout} aria-label="Logout" title="Logout">
+            <Icon name="logout" size={18} />
+          </button>
+        </div>
+      </aside>
+      <div className="dash-main">
+        <header className="page-head">
+          <div>
+            <div className="crumb">
+              {role} <span aria-hidden="true">/</span> {current?.label}
+            </div>
+            <h1>{current?.label}</h1>
+          </div>
+          {actions && <div className="page-actions">{actions}</div>}
+        </header>
+        <main className="dash-body">{children}</main>
+      </div>
+    </div>
   );
 }
 

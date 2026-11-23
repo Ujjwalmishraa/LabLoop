@@ -19,8 +19,8 @@ export default function PatientLayout() {
       <nav className="bottom-nav" aria-label="Main">
         <NavLink to="/home"><Icon name="home" size={24} /><span>{t("common.home")}</span></NavLink>
         <NavLink to="/jaanch"><Icon name="flask" size={24} /><span>{t("mine.tabTests")}</span></NavLink>
-        <NavLink to="/doctors"><Icon name="steth" size={24} /><span>Doctor</span></NavLink>
-        <NavLink to="/meri-booking"><Icon name="file" size={24} /><span>Booking</span></NavLink>
+        <NavLink to="/doctors"><Icon name="steth" size={24} /><span>{t("nav.doctor")}</span></NavLink>
+        <NavLink to="/meri-booking"><Icon name="file" size={24} /><span>{t("nav.booking")}</span></NavLink>
         <NavLink to="/profile"><Icon name="user" size={24} /><span>{t("profile.title")}</span></NavLink>
       </nav>
     </div>

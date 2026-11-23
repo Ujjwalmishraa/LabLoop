@@ -10,8 +10,10 @@ function Shell({ children }) {
   return (
     <div className="app auth-page">
       <Header showLang />
-      <div className="auth-banner">
-        <VillageScene label="" />
+      <div className="auth-hero" aria-hidden="true">
+        <div className="auth-hero-art">
+          <VillageScene label="" />
+        </div>
       </div>
       <main className="container narrow auth-main">{children}</main>
     </div>
@@ -38,8 +40,8 @@ export function Signup() {
     e.preventDefault();
     const v = {};
     if (f.name.trim().length < 2) v.name = t("auth.name");
-    if (!/^[6-9]\d{9}$/.test(f.phone)) v.phone = "10 ankon ka sahi mobile number likhein";
-    if (f.email && !/^\S+@\S+\.\S+$/.test(f.email)) v.email = "Sahi email likhein";
+    if (!/^[6-9]\d{9}$/.test(f.phone)) v.phone = t("err.phone");
+    if (f.email && !/^\S+@\S+\.\S+$/.test(f.email)) v.email = t("err.email");
     if (!pwOk(f.password)) v.password = t("auth.passwordHint");
     setErrs(v);
     if (Object.keys(v).length) return;
@@ -111,7 +113,7 @@ export function Login() {
 
   async function submit(e) {
     e.preventDefault();
-    if (!f.identifier.trim() || !f.password) return setErr("Mobile/email aur password dono likhein");
+    if (!f.identifier.trim() || !f.password) return setErr(t("err.loginBoth"));
     setBusy(true);
     setErr("");
     try {
@@ -172,7 +174,7 @@ export function ForgotPassword() {
   const [busy, setBusy] = useState(false);
   async function submit(e) {
     e.preventDefault();
-    if (!/^\S+@\S+\.\S+$/.test(email)) return setErr("Sahi email likhein");
+    if (!/^\S+@\S+\.\S+$/.test(email)) return setErr(t("err.email"));
     setBusy(true);
     setErr("");
     try {

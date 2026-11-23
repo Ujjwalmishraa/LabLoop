@@ -4,7 +4,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { get, patch, post, errorMessage } from "../../api/client.js";
 import { useAuth } from "../../auth/AuthContext.jsx";
 import { useT } from "../../i18n/I18nContext.jsx";
-import { Header, Badge, ErrorMsg, Field, Ok, QueryState, Stat, Tabs } from "../../components/ui.jsx";
+import { PanelShell, Badge, ErrorMsg, Field, Ok, QueryState, Stat } from "../../components/ui.jsx";
 import { rs, prettyDate, todayIso, DAYS } from "../../utils.js";
 
 export default function DoctorPanel() {
@@ -13,28 +13,27 @@ export default function DoctorPanel() {
   const today = useQuery({ queryKey: ["docAppts", "today"], queryFn: () => get("/doctor/appointments", { when: "today" }), refetchInterval: 20_000 });
   const tokens = today.data?.data || [];
   return (
-    <div className="app panel">
-      <Header title={user.doctor?.name || user.name} subtitle="Doctor panel" />
-      <main className="container">
+    <PanelShell
+      role={user.doctor?.name ? `Doctor · ${user.doctor.name}` : "Doctor panel"}
+      tabs={[
+        { key: "today", label: "Aaj", icon: "clock" },
+        { key: "upcoming", label: "Aage ke din", icon: "calendar" },
+        { key: "past", label: "Pehle ke", icon: "list" },
+        { key: "schedule", label: "Mera samay", icon: "calendar" },
+      ]}
+      value={tab}
+      onChange={setTab}
+    >
+      {tab !== "schedule" && (
         <div className="stat-row">
           <Stat icon="users" label="Aaj ke mareez" value={tokens.filter((a) => a.status !== "cancelled").length} />
           <Stat icon="clock" tone="amber" label="Abhi baaki" value={tokens.filter((a) => a.status === "booked").length} />
           <Stat icon="checkCircle" tone="green" label="Dekh liye" value={tokens.filter((a) => a.status === "seen").length} />
           <Stat icon="flask" tone="violet" label="Lab ko refer (aaj)" value={tokens.filter((a) => a.referredBooking).length} />
         </div>
-        <Tabs
-          tabs={[
-            { key: "today", label: "Aaj", icon: "clock" },
-            { key: "upcoming", label: "Aage ke din", icon: "calendar" },
-            { key: "past", label: "Pehle ke", icon: "list" },
-            { key: "schedule", label: "Mera samay", icon: "calendar" },
-          ]}
-          value={tab}
-          onChange={setTab}
-        />
-        {tab === "schedule" ? <ScheduleEditor /> : <ApptList when={tab} />}
-      </main>
-    </div>
+      )}
+      {tab === "schedule" ? <ScheduleEditor /> : <ApptList when={tab} />}
+    </PanelShell>
   );
 }
 

@@ -7,42 +7,39 @@ import { VillageScene, TestIcon, DoctorIcon, ReportIcon } from "../../components
 export default function PatientHome() {
   const { user } = useAuth();
   const { t } = useT();
+  const actions = [
+    { to: "/jaanch", tone: "teal", art: <TestIcon />, title: t("home.tests"), sub: t("home.testsSub") },
+    { to: "/doctors", tone: "violet", art: <DoctorIcon />, title: t("home.doctor"), sub: t("home.doctorSub") },
+    { to: "/meri-booking", tone: "amber", art: <ReportIcon />, title: t("home.mine"), sub: t("home.mineSub") },
+  ];
   return (
-    <section>
-      <div className="village-bar">
-        <span className="meta strong"><Icon name="pin" size={18} /> {user.village?.name}</span>
-        <Link className="link-btn" to="/village">
-          {t("village.change")}
-        </Link>
+    <section className="home">
+      <div className="home-hero">
+        <div className="home-hero-text">
+          <Link to="/village" className="home-village">
+            <Icon name="pin" size={16} /> {user.village?.name} <span>· {t("village.change")}</span>
+          </Link>
+          <h1 className="big-title">{t("home.hello", { name: user.name.split(" ")[0] })}</h1>
+        </div>
+        <div className="home-hero-art" aria-hidden="true">
+          <VillageScene label="" />
+        </div>
       </div>
-      <h1 className="big-title greet-title">{t("home.hello", { name: user.name.split(" ")[0] })}</h1>
-      <div className="greet-card">
-        <VillageScene label="" />
+      <div className="home-actions">
+        {actions.map((a) => (
+          <Link key={a.to} className={`home-action tone-${a.tone}`} to={a.to}>
+            <span className="ha-art">{a.art}</span>
+            <span className="ha-text">
+              <strong>{a.title}</strong>
+              <small>{a.sub}</small>
+            </span>
+            <Icon name="arrowRight" size={20} className="ha-go" />
+          </Link>
+        ))}
       </div>
-      <div className="big-actions">
-        <Link className="big-action teal" to="/jaanch">
-          <span className="ba-icon"><TestIcon /></span>
-          <span className="ba-text">
-            <strong>{t("home.tests")}</strong>
-            <small>{t("home.testsSub")}</small>
-          </span>
-        </Link>
-        <Link className="big-action violet" to="/doctors">
-          <span className="ba-icon"><DoctorIcon /></span>
-          <span className="ba-text">
-            <strong>{t("home.doctor")}</strong>
-            <small>{t("home.doctorSub")}</small>
-          </span>
-        </Link>
-        <Link className="big-action amber" to="/meri-booking">
-          <span className="ba-icon"><ReportIcon /></span>
-          <span className="ba-text">
-            <strong>{t("home.mine")}</strong>
-            <small>{t("home.mineSub")}</small>
-          </span>
-        </Link>
-      </div>
-      <p className="save-line">{t("home.save").replace(/^\S+\s/, "")}</p>
+      <p className="home-save">
+        <Icon name="sparkle" size={16} /> {t("home.save").replace(/^\S+\s/, "")}
+      </p>
     </section>
   );
 }

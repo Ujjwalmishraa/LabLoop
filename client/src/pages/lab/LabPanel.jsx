@@ -3,7 +3,7 @@ import { Icon } from "../../components/Icons.jsx";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { get, patch, upload, errorMessage } from "../../api/client.js";
 import { useAuth } from "../../auth/AuthContext.jsx";
-import { Header, Badge, ErrorMsg, Field, Pager, QueryState, Stat, Tabs } from "../../components/ui.jsx";
+import { PanelShell, Badge, ErrorMsg, Field, Pager, QueryState, Stat } from "../../components/ui.jsx";
 import { rs, prettyDate, prettyDateTime, LAB_SLOTS } from "../../utils.js";
 
 const FLOW = [
@@ -19,18 +19,14 @@ export default function LabPanel() {
   // Counts come with every bookings response; a tiny query keeps them fresh on every tab
   const counts = useQuery({ queryKey: ["labCounts"], queryFn: () => get("/lab/bookings", { limit: 1 }), refetchInterval: 15_000 });
   const c = counts.data?.counts || {};
-  const tabs = [...FLOW.map((f) => ({ ...f, count: c[f.key] || 0 })), { key: "tests", label: "Rate list", icon: "list" }, { key: "money", label: "Hisaab", icon: "wallet" }];
+  const tabs = [...FLOW.map((f) => ({ ...f, count: c[f.key] || 0 })), { key: "tests", label: "Rate list", icon: "list" }, { key: "money", label: "Hisaab & settlement", icon: "wallet" }];
 
   return (
-    <div className="app panel">
-      <Header title={`Lab: ${user.lab?.name || ""}`} subtitle="Lab panel" />
-      <main className="container">
-        <Tabs tabs={tabs} value={tab} onChange={setTab} />
+    <PanelShell role={user.lab?.name ? `Lab · ${user.lab.name}` : "Lab panel"} tabs={tabs} value={tab} onChange={setTab}>
         {FLOW.some((f) => f.key === tab) && <BookingList status={tab} />}
         {tab === "tests" && <RateList />}
         {tab === "money" && <Settlements />}
-      </main>
-    </div>
+    </PanelShell>
   );
 }
 
@@ -309,40 +305,278 @@ function TestRow({ test }) {
   );
 }
 
+const todayIst = () => new Date(Date.now() + 5.5 * 3600 * 1000).toISOString().slice(0, 10);
+const daysAgo = (n) => new Date(Date.now() - n * 864e5 + 5.5 * 36e5).toISOString().slice(0, 10);
+const MODE_LABEL = { cash: "Cash (aapne liya)", upi: "UPI (platform pe)", online: "Online (platform pe)" };
+
+function downloadCsv(name, rows) {
+  const csv = rows.map((r) => r.map((c) => `"${String(c ?? "").replace(/"/g, '""')}"`).join(",")).join("\n");
+  const url = URL.createObjectURL(new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8" }));
+  const a = Object.assign(document.createElement("a"), { href: url, download: name });
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+// Who pays whom, from the lab's side. value > 0: platform pays the lab.
+function Owe({ value, big }) {
+  if (!value) return <span className="muted">Barabar ₹0</span>;
+  return (
+    <span className={`net ${value > 0 ? "net-pay" : "net-get"} ${big ? "big" : ""}`}>
+      {rs(Math.abs(value))}
+      <small>{value > 0 ? "aapko milega" : "aapko dena hai"}</small>
+    </span>
+  );
+}
+
 function Settlements() {
+  const [range, setRange] = useState({ from: `${todayIst().slice(0, 8)}01`, to: todayIst() });
+  const q = useQuery({ queryKey: ["labFinance", range], queryFn: () => get("/lab/finance", range), placeholderData: (p) => p });
+  const presets = [
+    ["Is mahine", { from: `${todayIst().slice(0, 8)}01`, to: todayIst() }],
+    ["Pichhle 7 din", { from: daysAgo(6), to: todayIst() }],
+    ["Pichhle 30 din", { from: daysAgo(29), to: todayIst() }],
+    ["Is saal", { from: `${todayIst().slice(0, 4)}-01-01`, to: todayIst() }],
+  ];
+  return (
+    <>
+      <div className="card toolbar">
+        <div className="pill-row">
+          {presets.map(([label, r]) => (
+            <button key={label} className={`pill ${range.from === r.from && range.to === r.to ? "on" : ""}`} onClick={() => setRange(r)}>
+              {label}
+            </button>
+          ))}
+        </div>
+        <div className="filters">
+          <label className="small">
+            Se <input type="date" value={range.from} max={range.to} onChange={(e) => e.target.value && setRange({ ...range, from: e.target.value })} />
+          </label>
+          <label className="small">
+            Tak <input type="date" value={range.to} min={range.from} onChange={(e) => e.target.value && setRange({ ...range, to: e.target.value })} />
+          </label>
+        </div>
+      </div>
+      <QueryState query={q}>
+        {(d) => {
+          const t = d.totals;
+          const net = t.pendingNet;
+          return (
+            <>
+              <div className="card final-card">
+                <div className="final-head">
+                  <div>
+                    <span className="flow-label">
+                      Final hisaab · {prettyDate(d.range.from)} se {prettyDate(d.range.to)}
+                    </span>
+                    <h2>
+                      {net > 0 ? (
+                        <>
+                          Platform aapko <span className="amt pay">{rs(net)}</span> dega
+                        </>
+                      ) : net < 0 ? (
+                        <>
+                          Aapko platform ko <span className="amt get">{rs(-net)}</span> dene hain
+                        </>
+                      ) : (
+                        <>Hisaab barabar hai, kisi ko kuch nahi dena</>
+                      )}
+                    </h2>
+                    <p className="muted small">Jo settlement abhi paid nahi hua, sirf uska. Admin ko bhi bilkul yahi hisaab dikhta hai.</p>
+                  </div>
+                  <div className="final-profit">
+                    <span>Aapki kamai</span>
+                    <strong>{rs(t.labEarning)}</strong>
+                    <small>
+                      {t.bookings} sample · {d.lab.commissionPercent}% commission kat ke
+                    </small>
+                  </div>
+                </div>
+                <div className="final-steps">
+                  <div>
+                    <span>Cash aapke paas</span>
+                    <strong>{rs(t.cashCollected)}</strong>
+                  </div>
+                  <div>
+                    <span>Online platform pe aaya</span>
+                    <strong>{rs(t.onlineCollected)}</strong>
+                  </div>
+                  <div>
+                    <span>Platform ka commission</span>
+                    <strong>{rs(t.commission)}</strong>
+                  </div>
+                  <div className="hl">
+                    <span>Aapka hissa</span>
+                    <strong>{rs(t.labEarning)}</strong>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flow-grid">
+                <div className="card flow flow-get">
+                  <span className="flow-label">Aapko platform ko dena hai</span>
+                  <strong>{rs(t.labOwesUs)}</strong>
+                  <p className="muted small">Cash bookings: mareez se poora paisa aapne liya, usme se platform ka commission.</p>
+                </div>
+                <div className="card flow flow-pay">
+                  <span className="flow-label">Platform aapko dega</span>
+                  <strong>{rs(t.weOweLab)}</strong>
+                  <p className="muted small">Online bookings: paisa platform pe aaya, usme se aapka hissa.</p>
+                </div>
+                <div className="card flow flow-net">
+                  <span className="flow-label">Weekly settlement (paid hona baaki)</span>
+                  <Owe value={d.pendingSettlements.net} big />
+                  <p className="muted small">{d.pendingSettlements.count} hafte ka hisaab bana hai, payment abhi baaki.</p>
+                </div>
+              </div>
+
+              <div className="card">
+                <div className="row-between wrap">
+                  <div>
+                    <h3>Har booking ka record</h3>
+                    <p className="muted small">Sirf woh bookings jinka sample is samay mein liya gaya.</p>
+                  </div>
+                  {d.data.length > 0 && (
+                    <button
+                      className="secondary-btn small"
+                      onClick={() =>
+                        downloadCsv(`hisaab_${d.range.from}_${d.range.to}.csv`, [
+                          ["Code", "Mareez", "Sample liya", "Payment", "Mareez ka bill", "Aapka hissa", "Platform ka commission", "Kaun dega", "Amount", "Settlement"],
+                          ...d.data.map((b) => [
+                            b.code,
+                            b.patientName,
+                            prettyDateTime(b.collectedAt),
+                            MODE_LABEL[b.mode] || b.mode,
+                            b.total,
+                            b.labPayout,
+                            b.commission,
+                            b.net > 0 ? "Platform lab ko dega" : "Lab platform ko dega",
+                            Math.abs(b.net),
+                            settleText(b.settlement),
+                          ]),
+                        ])
+                      }
+                    >
+                      ⬇ Excel (CSV)
+                    </button>
+                  )}
+                </div>
+                {d.data.length === 0 ? (
+                  <p className="muted">Is samay mein koi sample nahi liya gaya.</p>
+                ) : (
+                  <div className="table-wrap">
+                    <table className="table">
+                      <thead>
+                        <tr>
+                          <th>Booking</th>
+                          <th>Payment</th>
+                          <th className="num">Mareez ka bill</th>
+                          <th className="num">Aapka hissa</th>
+                          <th className="num">Platform ka</th>
+                          <th className="num">Lena / dena</th>
+                          <th>Settlement</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {d.data.map((b) => (
+                          <tr key={b._id}>
+                            <td>
+                              <strong>{b.patientName}</strong>
+                              <div className="muted small">
+                                <code>{b.code}</code> · {prettyDateTime(b.collectedAt)}
+                              </div>
+                            </td>
+                            <td>
+                              <span className={`mode mode-${b.mode}`}>{MODE_LABEL[b.mode] || b.mode}</span>
+                            </td>
+                            <td className="num">{rs(b.total)}</td>
+                            <td className="num strong">{rs(b.labPayout)}</td>
+                            <td className="num">{rs(b.commission)}</td>
+                            <td className="num">
+                              <Owe value={b.net} />
+                            </td>
+                            <td className="small">{settleText(b.settlement)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                      <tfoot>
+                        <tr>
+                          <th>Kul ({t.bookings})</th>
+                          <th></th>
+                          <th className="num">{rs(t.gross)}</th>
+                          <th className="num">{rs(t.labEarning)}</th>
+                          <th className="num">{rs(t.commission)}</th>
+                          <th className="num">
+                            <Owe value={t.net} />
+                          </th>
+                          <th></th>
+                        </tr>
+                      </tfoot>
+                    </table>
+                  </div>
+                )}
+              </div>
+              <WeeklySettlements />
+            </>
+          );
+        }}
+      </QueryState>
+    </>
+  );
+}
+
+const settleText = (s) => (s ? (s.status === "paid" ? `Paid · Ref ${s.reference}` : "Hafte ka hisaab bana, payment baaki") : "Agle Somvaar hisaab banega");
+
+function WeeklySettlements() {
   const [page, setPage] = useState(1);
   const q = useQuery({ queryKey: ["labSettlements", page], queryFn: () => get("/lab/settlements", { page }) });
   return (
-    <>
-      <p className="muted">Har Monday subah pichhle hafte ka hisaab banta hai. Net = lab ka hissa − collector ke paas cash.</p>
-      <QueryState query={q} empty="Abhi koi hisaab nahi bana.">
+    <div className="card">
+      <h3>Hafte ke settlement</h3>
+      <p className="muted small">Har Somvaar subah pichhle hafte ka hisaab banta hai. Final = aapka hissa − aapke paas aaya cash.</p>
+      <QueryState query={q} empty="Abhi koi hafte ka hisaab nahi bana.">
         {(d) => (
           <>
-            {d.data.map((s) => (
-              <div key={s._id} className="card">
-                <div className="row-between">
-                  <h3>
-                    {prettyDate(s.weekStart.slice(0, 10))} – {prettyDate(new Date(new Date(s.weekEnd).getTime() - 86400000).toISOString().slice(0, 10))}
-                  </h3>
-                  <Badge status={s.status} label={s.status === "paid" ? "Paid" : "Baaki"} />
-                </div>
-                <div className="stat-row">
-                  <Stat label="Kul order" value={rs(s.gross)} />
-                  <Stat label="Lab ka hissa" value={rs(s.labPayout)} />
-                  <Stat label="Collector ke paas cash" value={rs(s.cashWithLab)} />
-                  <Stat label={s.netPayable >= 0 ? "Aapko milega" : "Aapko dena hai"} value={rs(Math.abs(s.netPayable))} />
-                </div>
-                {s.status === "paid" && (
-                  <p className="muted small">
-                    Paid {prettyDateTime(s.paidAt)} · Ref {s.reference}
-                  </p>
-                )}
-              </div>
-            ))}
+            <div className="table-wrap">
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th>Hafta</th>
+                    <th className="num">Kul bill</th>
+                    <th className="num">Aapka hissa</th>
+                    <th className="num">Cash aapke paas</th>
+                    <th className="num">Final</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {d.data.map((s) => (
+                    <tr key={s._id}>
+                      <td className="strong">
+                        {prettyDate(s.weekStart.slice(0, 10))} – {prettyDate(new Date(new Date(s.weekEnd).getTime() - 86400000).toISOString().slice(0, 10))}
+                      </td>
+                      <td className="num">{rs(s.gross)}</td>
+                      <td className="num">{rs(s.labPayout)}</td>
+                      <td className="num">{rs(s.cashWithLab)}</td>
+                      <td className="num">
+                        <Owe value={s.netPayable} />
+                      </td>
+                      <td>
+                        <Badge status={s.status} label={s.status === "paid" ? "Paid" : "Baaki"} />
+                        {s.status === "paid" && (
+                          <div className="muted small">
+                            {prettyDateTime(s.paidAt)} · Ref {s.reference}
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
             <Pager meta={d.meta} onPage={setPage} />
           </>
         )}
       </QueryState>
-    </>
+    </div>
   );
 }

@@ -1,5 +1,7 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router";
+import { Icon } from "../../components/Icons.jsx";
+import { testHint } from "../../testInfo.js";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { get, post, errorMessage, fieldErrors } from "../../api/client.js";
 import { useAuth } from "../../auth/AuthContext.jsx";
@@ -8,6 +10,22 @@ import { Back, Field, ErrorMsg, QueryState, Steps } from "../../components/ui.js
 import { rs, todayIso, addDays, dayLabel, prettyDate, SLOT_KEYS } from "../../utils.js";
 
 // Steps: lab list -> test picker -> details -> booked
+// "1 Lab → 2 Test → 3 Pata aur din" so the patient always knows how far along they are.
+function FlowSteps({ at }) {
+  const { t } = useT();
+  const steps = [t("flow.s1"), t("flow.s2"), t("flow.s3")];
+  return (
+    <ol className="flow-steps" aria-label={t("flow.label")}>
+      {steps.map((label, i) => (
+        <li key={label} className={i < at ? "done" : i === at ? "now" : ""} aria-current={i === at ? "step" : undefined}>
+          <span className="fs-dot">{i < at ? "✓" : i + 1}</span>
+          <span className="fs-label">{label}</span>
+        </li>
+      ))}
+    </ol>
+  );
+}
+
 export default function BookTest() {
   const [step, setStep] = useState("labs");
   const [lab, setLab] = useState(null);
@@ -16,18 +34,29 @@ export default function BookTest() {
 
   if (step === "labs")
     return (
-      <LabList
+      <>
+        <FlowSteps at={0} />
+        <LabList
         onPick={(l) => {
           setLab(l);
           setCart([]);
           setStep("tests");
         }}
-      />
+        />
+      </>
     );
-  if (step === "tests") return <TestPick lab={lab} cart={cart} setCart={setCart} onBack={() => setStep("labs")} onNext={() => setStep("details")} />;
+  if (step === "tests")
+    return (
+      <>
+        <FlowSteps at={1} />
+        <TestPick lab={lab} cart={cart} setCart={setCart} onBack={() => setStep("labs")} onNext={() => setStep("details")} />
+      </>
+    );
   if (step === "details")
     return (
-      <Details
+      <>
+        <FlowSteps at={2} />
+        <Details
         lab={lab}
         cart={cart}
         onBack={() => setStep("tests")}
@@ -35,7 +64,8 @@ export default function BookTest() {
           setBooking(b);
           setStep("done");
         }}
-      />
+        />
+      </>
     );
   return <Booked booking={booking} />;
 }
@@ -53,21 +83,31 @@ function LabList({ onPick }) {
         {(d) =>
           d.data.map((l) => (
             <div key={l._id} className="card lab-card">
-              <div className="row-between">
-                <h3>{l.name}</h3>
+              <div className="lab-top">
+                <span className="lab-badge" aria-hidden="true">
+                  <Icon name="flask" size={22} />
+                </span>
+                <div className="lab-title">
+                  <h3>{l.name}</h3>
+                  <p className="muted small">{l.address}</p>
+                </div>
                 <span className="km">{t("common.km", { n: l.distanceKm })}</span>
               </div>
-              <p className="muted">{l.address}</p>
-              <div className="chips">
-                <span className="chip ok">{t("labs.home")}</span>
-                <span className="chip">{t("labs.tests", { n: l.testCount })}</span>
-                <span className="chip">{t("labs.freeAbove", { n: l.freeCollectionAbove })}</span>
-                <span className="chip">{t("labs.min", { n: l.minOrderValue })}</span>
-              </div>
+              <ul className="lab-facts">
+                <li className="ok">
+                  <Icon name="truck" size={16} /> {t("labs.home").replace(/^✓\s*/, "")}
+                </li>
+                <li>
+                  <Icon name="list" size={16} /> {t("labs.tests", { n: l.testCount })}
+                </li>
+                <li>
+                  <Icon name="rupee" size={16} /> {t("labs.freeAbove", { n: l.freeCollectionAbove })}
+                </li>
+              </ul>
               {l.pathologist?.name && (
-                <p className="muted small">
-                  🔬 {l.pathologist.name}
-                  {l.pathologist.qualification ? ` (${l.pathologist.qualification})` : ""}
+                <p className="lab-doc small">
+                  <Icon name="user" size={15} /> {l.pathologist.name}
+                  {l.pathologist.qualification ? ` (${l.pathologist.qualification})` : ""} · {t("labs.min", { n: l.minOrderValue })}
                 </p>
               )}
               <button className="primary-btn" onClick={() => onPick(l)}>
@@ -86,7 +126,7 @@ function feeFor(lab, total) {
 }
 
 function TestPick({ lab, cart, setCart, onBack, onNext }) {
-  const { t } = useT();
+  const { t, lang } = useT();
   const [q, setQ] = useState("");
   const tests = useQuery({ queryKey: ["labTests", lab._id], queryFn: () => get(`/labs/${lab._id}/tests`) });
   const has = (x) => cart.some((c) => c._id === x._id);
@@ -103,16 +143,31 @@ function TestPick({ lab, cart, setCart, onBack, onNext }) {
       <input className="search" placeholder={t("tests.search")} aria-label={t("tests.search")} value={q} onChange={(e) => setQ(e.target.value)} />
       <QueryState query={tests} empty={t("tests.none")}>
         {(d) => {
-          const list = d.data.filter((x) => x.name.toLowerCase().includes(q.toLowerCase()));
+          const needle = q.trim().toLowerCase();
+          const list = d.data.filter((x) => !needle || `${x.name} ${testHint(x.name, "hi")} ${testHint(x.name, "en")} ${testHint(x.name, "hd")}`.toLowerCase().includes(needle));
           if (!list.length) return <p className="muted">{t("tests.none")}</p>;
           return (
             <div className="test-list">
               {list.map((x) => (
-                <button key={x._id} className={`test-item ${has(x) ? "on" : ""}`} onClick={() => toggle(x)} aria-pressed={has(x)}>
+                <button
+                  key={x._id}
+                  className={`test-item ${has(x) ? "on" : ""}`}
+                  onClick={() => toggle(x)}
+                  aria-pressed={has(x)}
+                  aria-label={`${x.name} ${rs(x.listingPrice)}`}
+                  aria-describedby={testHint(x.name, lang) ? `hint-${x._id}` : undefined}
+                >
                   <span className="tick" aria-hidden="true">{has(x) ? "✓" : "+"}</span>
                   <span className="t-name">
-                    {x.name}
-                    {x.fastingRequired && <span className="chip small-chip">{t("tests.fasting")}</span>}
+                    <span className="t-title">
+                      {x.name}
+                      {x.fastingRequired && <span className="chip small-chip">{t("tests.fasting")}</span>}
+                    </span>
+                    {testHint(x.name, lang) && (
+                      <small id={`hint-${x._id}`} className="t-hint">
+                        {testHint(x.name, lang)}
+                      </small>
+                    )}
                   </span>
                   <span className="t-price">{rs(x.listingPrice)}</span>
                 </button>
@@ -154,7 +209,7 @@ function Details({ lab, cart, onBack, onDone }) {
   const fasting = cart.some((x) => x.fastingRequired);
 
   async function addMember() {
-    if (!newMember?.name?.trim()) return setErrs({ member: "Naam likhein" });
+    if (!newMember?.name?.trim()) return setErrs({ member: t("err.name") });
     try {
       const m = await post("/me/family", { name: newMember.name, age: newMember.age || undefined, relation: newMember.relation || undefined });
       await qc.invalidateQueries({ queryKey: ["family"] });
@@ -168,8 +223,8 @@ function Details({ lab, cart, onBack, onDone }) {
 
   async function submit() {
     const v = {};
-    if (f.address.trim().length < 3) v.address = "Ghar ka pata likhein";
-    if (!f.consent) v.consent = "Aage badhne ke liye tick karein";
+    if (f.address.trim().length < 3) v.address = t("err.address");
+    if (!f.consent) v.consent = t("err.consent");
     setErrs(v);
     if (Object.keys(v).length) return;
     setBusy(true);

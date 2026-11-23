@@ -65,7 +65,7 @@ test("2. lab confirms, enters OTP, uploads report; patient sees it", async ({ br
   const card = () => lab.getByTestId("lab-card").filter({ hasText: code });
 
   await card().getByRole("button", { name: "✓ Confirm, sample lene aayenge" }).click();
-  await lab.getByRole("tab", { name: /Sample lena hai/ }).click();
+  await lab.locator(".side-nav").getByRole("button", { name: /Sample lena hai/ }).click();
   // Wrong OTP first
   await card().getByLabel("OTP").fill(otp === "0000" ? "1111" : "0000");
   await card().getByRole("button", { name: "Sample le liya ✓" }).click();
@@ -73,10 +73,10 @@ test("2. lab confirms, enters OTP, uploads report; patient sees it", async ({ br
   await card().getByLabel("OTP").fill(otp);
   await card().getByRole("button", { name: "Sample le liya ✓" }).click();
 
-  await lab.getByRole("tab", { name: /Report daalni hai/ }).click();
+  await lab.locator(".side-nav").getByRole("button", { name: /Report daalni hai/ }).click();
   await card().getByLabel("Report file").setInputFiles({ name: "cbc-report.pdf", mimeType: "application/pdf", buffer: PDF });
   await card().getByRole("button", { name: "📄 Report bhejein" }).click();
-  await lab.getByRole("tab", { name: /Ho gaya/ }).click();
+  await lab.locator(".side-nav").getByRole("button", { name: /Ho gaya/ }).click();
   await expect(card()).toContainText("Report taiyaar");
 
   await patient.goto("/meri-booking");
@@ -95,7 +95,7 @@ test("3. agent creates a doctor; doctor logs in, changes password, refers a test
   const agent = await (await browser.newContext()).newPage();
   await login(agent, "agent@nidaansetu.test", PW, "/login/agent");
   await expect(agent).toHaveURL(/\/agent/);
-  await agent.getByRole("tab", { name: "Doctor jodein" }).click();
+  await agent.locator(".side-nav").getByRole("button", { name: "Doctor jodein" }).click();
   await agent.getByLabel("Doctor ka naam").fill("Dr. Naya Doctor");
   await agent.getByLabel("Email (login ID)").fill("naya.doctor@example.in");
   await agent.getByLabel("Clinic ka naam").fill("Naya Clinic");

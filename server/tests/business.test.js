@@ -406,3 +406,55 @@ describe("weekly settlement", () => {
     expect(r.body.topVillages[0].name).toBe("Rampur");
   });
 });
+
+describe("lab hisaab (finance ledger)", () => {
+  test("lab sees only its own ledger and the same totals as the admin", async () => {
+    const lab = as(app, shreeStaff.token);
+    const b = (await book(["CBC", "HbA1c"])).body;
+    await lab.patch(`/lab/bookings/${b._id}/confirm`, { collectionTime: "7 baje" });
+    expect((await lab.patch(`/lab/bookings/${b._id}/collect`, { otp: b.otp, paymentMode: "cash" })).status).toBe(200);
+
+    const mine = await lab.get("/lab/finance");
+    expect(mine.status).toBe(200);
+    const row = mine.body.data.find((x) => x.code === b.code);
+    expect(row.mode).toBe("cash");
+    expect(row.commission).toBe(row.total - row.labPayout);
+    expect(row.net).toBe(-row.commission); // cash: the lab owes the platform its commission
+
+    const adminRow = (await as(app, admin.token).get("/admin/finance")).body.data.find((r) => String(r.lab._id) === shreeId());
+    for (const k of ["bookings", "gross", "labEarning", "commission", "cashCollected", "onlineCollected", "labOwesUs", "weOweLab", "pendingNet"]) {
+      expect(mine.body.totals[k]).toBe(adminRow[k]);
+    }
+
+    // Another lab never sees this booking
+    const other = await as(app, jeevanStaff.token).get("/lab/finance");
+    expect(other.body.data.some((x) => x.code === b.code)).toBe(false);
+    // Bad range is rejected
+    expect((await lab.get("/lab/finance?from=2026-02-10&to=2026-02-01")).status).toBe(400);
+  });
+});
+
+describe("admin money overview", () => {
+  test("amounts to pay and to collect are kept per lab, never netted across labs", async () => {
+    const r = await as(app, admin.token).get("/admin/finance");
+    expect(r.status).toBe(200);
+    const t = r.body.totals;
+    const pay = r.body.data.filter((d) => d.pendingNet > 0).reduce((s, d) => s + d.pendingNet, 0);
+    const collect = r.body.data.filter((d) => d.pendingNet < 0).reduce((s, d) => s - d.pendingNet, 0);
+    expect(t.payToLabs).toBe(pay);
+    expect(t.collectFromLabs).toBe(collect);
+    expect(t.payToLabs - t.collectFromLabs).toBe(t.pendingNet);
+  });
+
+  test("admin can create an agent and sees it in the agents list", async () => {
+    const adm = as(app, admin.token);
+    const c = await adm.post("/admin/users", { name: "Naya Agent", email: "naya.agent@nidaansetu.test", role: "agent" });
+    expect(c.status).toBe(201);
+    expect(c.body.tempPassword).toBeTruthy();
+    const list = await adm.get("/admin/agents");
+    const a = list.body.data.find((x) => x.email === "naya.agent@nidaansetu.test");
+    expect(a).toMatchObject({ labs: 0, doctors: 0, status: "active" });
+    // Lab staff cannot see it
+    expect((await as(app, shreeStaff.token).get("/admin/agents")).status).toBe(403);
+  });
+});

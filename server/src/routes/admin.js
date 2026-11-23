@@ -12,6 +12,8 @@ import { audit, pick } from "../lib/audit.js";
 import { revokeAllForUser } from "../lib/tokens.js";
 import { badRequest, conflict, notFound } from "../lib/errors.js";
 import { nameSchema, emailSchema, phoneSchema } from "./auth.js";
+import { withPriceDefaults } from "../services/pricing.js";
+import { financeRange, financeMatch, financeGroupStages, financeLedger, FINANCE_ZERO } from "../services/finance.js";
 
 const router = Router();
 router.use(...guard("super_admin"));
@@ -53,6 +55,20 @@ router.post(
     res.status(201).json({ user, tempPassword });
   }
 );
+
+// Field agents with how much each one has onboarded.
+router.get("/agents", async (req, res) => {
+  const agents = await User.find({ role: "agent" }).select("name email phone status lastLoginAt createdAt mustChangePassword").sort({ createdAt: -1 }).lean();
+  const ids = agents.map((a) => a._id);
+  const [labs, doctors] = await Promise.all([
+    Lab.aggregate([{ $match: { onboardedBy: { $in: ids } } }, { $group: { _id: "$onboardedBy", n: { $sum: 1 } } }]),
+    Doctor.aggregate([{ $match: { onboardedBy: { $in: ids } } }, { $group: { _id: "$onboardedBy", n: { $sum: 1 } } }]),
+  ]);
+  const count = (rows) => Object.fromEntries(rows.map((r) => [String(r._id), r.n]));
+  const lc = count(labs);
+  const dc = count(doctors);
+  res.json({ data: agents.map((a) => ({ ...a, labs: lc[String(a._id)] || 0, doctors: dc[String(a._id)] || 0 })) });
+});
 
 router.patch("/users/:id/status", validate({ params: idParams, body: z.object({ status: statusEnum }) }), async (req, res) => {
   if (String(req.params.id) === String(req.user._id)) throw badRequest("Apna khud ka account band nahi kar sakte");
@@ -220,79 +236,76 @@ router.patch("/settlements/:id/paid", validate({ params: idParams, body: z.objec
 //   online = the patient paid on the site (UPI/online)            -> we owe the lab its payout
 //   net    = lab payout - cash with lab  (> 0: we pay the lab, < 0: the lab pays us)
 // "settled" = the booking sits in a settlement already marked paid.
-const isoDate = z.string().refine(isValidIso, "Sahi date (YYYY-MM-DD) daalein");
-const financeRange = z.object({ from: isoDate.optional(), to: isoDate.optional() });
-function financeMatch({ from, to }) {
-  const start = from || `${todayIso().slice(0, 8)}01`;
-  const end = to || todayIso();
-  if (start > end) throw badRequest("'Se' date 'Tak' date se pehle honi chahiye", "BAD_RANGE");
-  return {
-    range: { from: start, to: end },
-    match: {
-      status: { $in: ["collected", "report_ready"] },
-      collectedAt: { $gte: new Date(`${start}T00:00:00+05:30`), $lt: new Date(`${addDaysIso(end, 1)}T00:00:00+05:30`) },
-    },
-  };
-}
-const isCash = { $eq: ["$payment.mode", "cash"] };
-const sumIf = (cond, field) => ({ $sum: { $cond: [cond, field, 0] } });
-
 router.get("/finance", validate({ query: financeRange }), async (req, res) => {
   const { range, match } = financeMatch(req.q);
-  const rows = await Booking.aggregate([
+  const rows = await Booking.aggregate([{ $match: match }, ...financeGroupStages("$lab")]);
+  // Profit per test (from the prices frozen on each booking), so the admin sees which rate earns what.
+  const byTest = await Booking.aggregate([
     { $match: match },
-    { $lookup: { from: "settlements", localField: "settlement", foreignField: "_id", as: "st" } },
-    { $addFields: { commission: { $subtract: ["$total", "$labPayout"] }, settled: { $eq: [{ $first: "$st.status" }, "paid"] } } },
+    { $unwind: "$items" },
     {
       $group: {
-        _id: "$lab",
-        bookings: { $sum: 1 },
-        gross: { $sum: "$total" },
-        labEarning: { $sum: "$labPayout" },
-        commission: { $sum: "$commission" },
-        cashBookings: sumIf(isCash, 1),
-        cashCollected: sumIf(isCash, "$total"),
-        onlineCollected: sumIf({ $not: [isCash] }, "$total"),
-        labOwesUs: sumIf(isCash, "$commission"),
-        weOweLab: sumIf({ $not: [isCash] }, "$labPayout"),
-        settledNet: sumIf("$settled", { $subtract: ["$labPayout", { $cond: [isCash, "$total", 0] }] }),
+        _id: { $toLower: { $trim: { input: "$items.name" } } },
+        name: { $first: "$items.name" },
+        count: { $sum: 1 },
+        revenue: { $sum: "$items.listingPrice" },
+        labShare: { $sum: "$items.b2bPrice" },
+        minRate: { $min: "$items.listingPrice" },
+        maxRate: { $max: "$items.listingPrice" },
       },
     },
+    { $addFields: { platformShare: { $subtract: ["$revenue", "$labShare"] } } },
+    { $sort: { platformShare: -1 } },
+    { $limit: 200 },
+    { $project: { _id: 0 } },
   ]);
   const byLab = Object.fromEntries(rows.map((r) => [String(r._id), r]));
   const labs = await Lab.find().select("name commissionPercent status phone").sort({ name: 1 }).collation({ locale: "en" });
-  const zero = { bookings: 0, gross: 0, labEarning: 0, commission: 0, cashBookings: 0, cashCollected: 0, onlineCollected: 0, labOwesUs: 0, weOweLab: 0, settledNet: 0 };
+  const zero = FINANCE_ZERO;
   const data = labs.map((l) => {
     const { _id: _ignored, ...r } = byLab[String(l._id)] || zero;
     const net = r.weOweLab - r.labOwesUs;
     return { lab: { _id: l._id, name: l.name, commissionPercent: l.commissionPercent, status: l.status, phone: l.phone }, ...r, net, pendingNet: net - r.settledNet };
   });
   const totals = Object.fromEntries(Object.keys({ ...zero, net: 0, pendingNet: 0 }).map((k) => [k, data.reduce((s, d) => s + d[k], 0)]));
-  res.json({ range, data, totals });
+  // Never net one lab's debt against another's: what we must pay and what we must collect stay separate.
+  const toPay = data.filter((d) => d.pendingNet > 0);
+  const toCollect = data.filter((d) => d.pendingNet < 0);
+  totals.payToLabs = toPay.reduce((s, d) => s + d.pendingNet, 0);
+  totals.collectFromLabs = toCollect.reduce((s, d) => s - d.pendingNet, 0);
+  totals.labsToPay = toPay.length;
+  totals.labsToCollect = toCollect.length;
+  res.json({ range, data, totals, byTest });
 });
 
 router.get("/finance/labs/:id", validate({ params: idParams, query: financeRange }), async (req, res) => {
   const { range, match } = financeMatch(req.q);
   const lab = await Lab.findById(req.params.id).select("name commissionPercent");
   if (!lab) throw notFound("Lab nahi mila");
-  const bookings = await Booking.find({ ...match, lab: lab._id })
-    .select("code patientName date collectedAt total labPayout payment settlement")
-    .populate({ path: "settlement", select: "status reference" })
-    .sort({ collectedAt: -1 })
-    .limit(500);
+  res.json({ range, lab, data: await financeLedger(lab._id, match) });
+});
+
+// ---------- rate card: the money rules, per lab and per test (super admin only) ----------
+router.get("/rate-card", async (req, res) => {
+  const labs = await Lab.find({ status: "active" })
+    .select("name block phone commissionPercent collectionFee freeCollectionAbove minOrderValue")
+    .sort({ name: 1 })
+    .collation({ locale: "en" })
+    .lean();
+  const tests = await LabTest.find({ lab: { $in: labs.map((l) => l._id) }, active: true })
+    .select("lab name category walkInPrice listingPrice b2bPrice b2bOverridden")
+    .sort({ name: 1 })
+    .collation({ locale: "en" })
+    .lean();
+  const byLab = {};
+  for (const t of tests) (byLab[String(t.lab)] ||= []).push(t);
   res.json({
-    range,
-    lab,
-    data: bookings.map((b) => ({
-      _id: b._id,
-      code: b.code,
-      patientName: b.patientName,
-      collectedAt: b.collectedAt,
-      mode: b.payment?.mode,
-      total: b.total,
-      labPayout: b.labPayout,
-      commission: b.total - b.labPayout,
-      settlement: b.settlement ? { status: b.settlement.status, reference: b.settlement.reference } : null,
+    data: labs.map((l) => ({
+      ...l,
+      tests: (byLab[String(l._id)] || []).map((t) => {
+        const p = withPriceDefaults(t, l);
+        return { _id: t._id, name: t.name, category: t.category, walkInPrice: t.walkInPrice, patientPrice: p.listingPrice, labShare: p.b2bPrice, platformShare: p.listingPrice - p.b2bPrice, custom: Boolean(t.b2bOverridden) };
+      }),
     })),
   });
 });

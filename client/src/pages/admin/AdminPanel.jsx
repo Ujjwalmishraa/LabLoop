@@ -3,13 +3,15 @@ import { Icon } from "../../components/Icons.jsx";
 import { Link } from "react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { get, post, patch, del, errorMessage, fieldErrors } from "../../api/client.js";
-import { useAuth } from "../../auth/AuthContext.jsx";
-import { Header, Badge, ErrorMsg, Field, Pager, QueryState, Stat, Tabs, TempPassword } from "../../components/ui.jsx";
+import { PanelShell, Badge, ErrorMsg, Field, Pager, QueryState, Stat, TempPassword } from "../../components/ui.jsx";
 import { rs, prettyDate, prettyDateTime, roleLabel } from "../../utils.js";
+import { useAuth } from "../../auth/AuthContext.jsx";
 
 const TABS = [
   { key: "dash", label: "Dashboard", icon: "chart" },
   { key: "finance", label: "Hisaab & commission", icon: "rupee" },
+  { key: "rules", label: "Rules & rates", icon: "shield" },
+  { key: "agents", label: "Agents", icon: "briefcase" },
   { key: "users", label: "Users", icon: "users" },
   { key: "labs", label: "Labs", icon: "flask" },
   { key: "doctors", label: "Doctors", icon: "steth" },
@@ -21,20 +23,24 @@ const TABS = [
 ];
 
 export default function AdminPanel() {
-  const { user } = useAuth();
   const [tab, setTab] = useState("dash");
   return (
-    <div className="app panel">
-      <Header title={user.name} subtitle="Super admin">
-        <Link className="chip-btn" to="/agent">
+    <PanelShell
+      role="Super admin"
+      tabs={TABS}
+      value={tab}
+      onChange={setTab}
+      actions={
+        <Link className="primary-btn small" to="/agent">
           <Icon name="plus" size={18} />
-          <span className="hide-sm">Lab/doctor jodein</span>
+          Lab/doctor jodein
         </Link>
-      </Header>
-      <main className="container">
-        <Tabs wrap tabs={TABS} value={tab} onChange={setTab} />
+      }
+    >
         {tab === "dash" && <Dashboard />}
         {tab === "finance" && <Finance />}
+        {tab === "rules" && <RulesRates />}
+        {tab === "agents" && <Agents />}
         {tab === "users" && <Users />}
         {tab === "labs" && <Labs />}
         {tab === "doctors" && <Doctors />}
@@ -43,8 +49,7 @@ export default function AdminPanel() {
         {tab === "appts" && <Appointments />}
         {tab === "settle" && <Settlements />}
         {tab === "audit" && <Audit />}
-      </main>
-    </div>
+    </PanelShell>
   );
 }
 
@@ -67,61 +72,174 @@ function Filters({ children }) {
 }
 
 // ---------- dashboard ----------
-function BarChart({ data, valueKey, label, format = (v) => v }) {
-  const max = Math.max(1, ...data.map((d) => d[valueKey]));
-  if (!data.some((d) => d[valueKey] > 0))
-    return (
-      <figure className="chart">
-        <figcaption className="field-label">{label}</figcaption>
-        <p className="chart-empty">Is samay mein abhi koi booking nahi.</p>
-      </figure>
-    );
-  const w = 18;
-  const h = 140;
+const fmtShort = (v) => (v >= 1e5 ? `₹${(v / 1e5).toFixed(1)}L` : v >= 1e3 ? `₹${(v / 1e3).toFixed(1)}k` : `₹${v}`);
+
+// Tiny trend line for the hero tiles.
+function Spark({ data, valueKey }) {
+  const vals = data.map((d) => d[valueKey] || 0);
+  const max = Math.max(1, ...vals);
+  const W = 120;
+  const H = 34;
+  const pts = vals.map((v, i) => `${((i / Math.max(1, vals.length - 1)) * W).toFixed(1)},${(H - 3 - (v / max) * (H - 6)).toFixed(1)}`);
   return (
-    <figure className="chart">
-      <figcaption className="field-label">{label}</figcaption>
-      <div className="chart-scroll">
-        <svg width={data.length * (w + 4)} height={h + 30} role="img" aria-label={label}>
-          {data.map((d, i) => {
-            const bh = Math.round((d[valueKey] / max) * h);
-            return (
-              <g key={d.date} transform={`translate(${i * (w + 4)},0)`}>
-                <title>{`${prettyDate(d.date)}: ${format(d[valueKey])}`}</title>
-                <rect y={h - bh} width={w} height={Math.max(bh, d[valueKey] ? 2 : 0)} rx="3" className="bar" />
-                {i % 5 === 0 && (
-                  <text y={h + 16} x={w / 2} textAnchor="middle" className="axis">
-                    {Number(d.date.slice(8))}/{Number(d.date.slice(5, 7))}
-                  </text>
-                )}
-              </g>
-            );
-          })}
-        </svg>
+    <svg className="spark" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" aria-hidden="true">
+      <polyline points={pts.join(" ")} fill="none" />
+    </svg>
+  );
+}
+
+function Hero({ s, days }) {
+  const { user } = useAuth();
+  const first = (user?.name || "Admin").split(/\s+/)[0];
+  const hour = Number(new Date().toLocaleString("en-IN", { hour: "numeric", hour12: false, timeZone: "Asia/Kolkata" }));
+  const greet = hour < 12 ? "Suprabhat" : hour < 17 ? "Namaste" : "Shubh sandhya";
+  const today = new Date().toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long", year: "numeric", timeZone: "Asia/Kolkata" });
+  const tiles = [
+    { icon: "file", label: "Bookings", value: s.bookings, spark: "bookings" },
+    { icon: "rupee", label: "Kul kaarobaar (GMV)", value: rs(s.gmv), spark: "gmv" },
+    { icon: "sparkle", label: "Platform ki kamai", value: rs(s.platformMargin) },
+    { icon: "users", label: "Mareez judey", value: s.counts.patients },
+  ];
+  return (
+    <section className="hero-banner">
+      <div className="hero-blob b1" aria-hidden="true" />
+      <div className="hero-blob b2" aria-hidden="true" />
+      <div className="hero-top">
+        <div>
+          <span className="hero-live">
+            <span className="pulse" aria-hidden="true" /> Live · {today}
+          </span>
+          <h2>
+            {greet}, {first} 👋
+          </h2>
+          <p>Pichhle {days} din mein NidaanSetu ka poora haal, ek nazar mein.</p>
+        </div>
+        <div className="hero-net">
+          <span>Network</span>
+          <strong>
+            {s.counts.labs} lab · {s.counts.doctors} doctor · {s.counts.villages} gaon
+          </strong>
+        </div>
       </div>
+      <div className="hero-tiles">
+        {tiles.map((t, i) => (
+          <div key={t.label} className="hero-tile" style={{ animationDelay: `${i * 70}ms` }}>
+            <span className="hero-tile-icon">
+              <Icon name={t.icon} size={18} />
+            </span>
+            <span className="hero-tile-label">{t.label}</span>
+            <strong>{t.value}</strong>
+            {t.spark && <Spark data={s.bookingsPerDay} valueKey={t.spark} />}
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+// Smooth area chart that stretches to the card width.
+function AreaChart({ data, valueKey, label, format = (v) => v, tone = "teal" }) {
+  const vals = data.map((d) => d[valueKey] || 0);
+  const total = vals.reduce((a, b) => a + b, 0);
+  const max = Math.max(1, ...vals);
+  const W = 600;
+  const H = 170;
+  const x = (i) => (i / Math.max(1, vals.length - 1)) * W;
+  const y = (v) => H - 8 - (v / max) * (H - 24);
+  let line = "";
+  vals.forEach((v, i) => {
+    if (i === 0) line += `M${x(i)},${y(v)}`;
+    else {
+      const cx = (x(i - 1) + x(i)) / 2;
+      line += ` C${cx},${y(vals[i - 1])} ${cx},${y(v)} ${x(i)},${y(v)}`;
+    }
+  });
+  const area = `${line} L${W},${H} L0,${H} Z`;
+  const id = `g-${valueKey}`;
+  const step = Math.ceil(data.length / 6);
+  return (
+    <figure className={`card area-chart tone-${tone}`}>
+      <figcaption>
+        <span className="field-label">{label}</span>
+        <strong>{format(total)}</strong>
+      </figcaption>
+      {total === 0 ? (
+        <p className="chart-empty">Is samay mein abhi koi booking nahi. Pehli booking aate hi graph yahan dikhega.</p>
+      ) : (
+        <>
+          <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" role="img" aria-label={`${label}: ${format(total)}`}>
+            <defs>
+              <linearGradient id={id} x1="0" x2="0" y1="0" y2="1">
+                <stop offset="0%" stopColor="currentColor" stopOpacity="0.35" />
+                <stop offset="100%" stopColor="currentColor" stopOpacity="0" />
+              </linearGradient>
+            </defs>
+            {[0.25, 0.5, 0.75].map((f) => (
+              <line key={f} x1="0" x2={W} y1={H * f} y2={H * f} className="grid-line" />
+            ))}
+            <path d={area} fill={`url(#${id})`} />
+            <path d={line} className="area-line" />
+            {vals.map((v, i) => (
+              <g key={i}>
+                <title>{`${prettyDate(data[i].date)}: ${format(v)}`}</title>
+                <rect x={x(i) - W / vals.length / 2} y="0" width={W / vals.length} height={H} fill="transparent" />
+              </g>
+            ))}
+          </svg>
+          <div className="area-axis">
+            {data.map((d, i) =>
+              i % step === 0 ? (
+                <span key={d.date}>
+                  {Number(d.date.slice(8))}/{Number(d.date.slice(5, 7))}
+                </span>
+              ) : null,
+            )}
+          </div>
+        </>
+      )}
     </figure>
   );
 }
 
-// Pending vs done at a glance, for lab tests and doctor tokens.
+// Donut + legend: pending vs done, for lab tests and doctor tokens.
 function Progress({ title, icon, groups }) {
   const total = groups.reduce((n, g) => n + g.n, 0);
+  const done = groups.find((g) => g.main)?.n || 0;
+  const R = 52;
+  const C = 2 * Math.PI * R;
+  let offset = 0;
   return (
     <div className="card work-card">
       <h3 className="meta strong">
-        <Icon name={icon} size={20} /> {title} <span className="muted small">({total})</span>
+        <Icon name={icon} size={20} /> {title}
       </h3>
-      <div className="stack-bar" aria-hidden="true">
-        {groups.map((g) => (g.n ? <span key={g.label} className={`seg seg-${g.tone}`} style={{ flex: g.n }} /> : null))}
-      </div>
-      <div className="work-legend">
-        {groups.map((g) => (
-          <div key={g.label}>
-            <span className={`dot-${g.tone}`} />
-            <span>{g.label}</span>
-            <strong>{g.n}</strong>
-          </div>
-        ))}
+      <div className="donut-wrap">
+        <svg className="donut" viewBox="0 0 140 140" role="img" aria-label={`${title}: ${total}`}>
+          <circle cx="70" cy="70" r={R} className="donut-track" />
+          {total > 0 &&
+            groups.map((g) => {
+              if (!g.n) return null;
+              const len = (g.n / total) * C;
+              const el = <circle key={g.label} cx="70" cy="70" r={R} className={`donut-seg stroke-${g.tone}`} strokeDasharray={`${len} ${C - len}`} strokeDashoffset={-offset} />;
+              offset += len;
+              return el;
+            })}
+          <text x="70" y="68" textAnchor="middle" className="donut-num">
+            {total}
+          </text>
+          <text x="70" y="88" textAnchor="middle" className="donut-sub">
+            {total ? `${Math.round((done / total) * 100)}% poora` : "kul"}
+          </text>
+        </svg>
+        <div className="work-legend">
+          {groups.map((g) => (
+            <div key={g.label}>
+              <span className={`dot-${g.tone}`} />
+              <span>{g.label}</span>
+              <strong>{g.n}</strong>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );
@@ -139,7 +257,7 @@ function WorkStatus({ s }) {
           { label: "Nayi request (pending)", n: b.requested || 0, tone: "amber" },
           { label: "Sample lena baaki", n: b.confirmed || 0, tone: "violet" },
           { label: "Report baaki", n: b.collected || 0, tone: "teal" },
-          { label: "Poora (report di)", n: b.report_ready || 0, tone: "green" },
+          { label: "Poora (report di)", n: b.report_ready || 0, tone: "green", main: true },
           { label: "Cancel", n: b.cancelled || 0, tone: "rose" },
         ]}
       />
@@ -148,7 +266,7 @@ function WorkStatus({ s }) {
         icon="steth"
         groups={[
           { label: "Aana baaki (pending)", n: a.booked || 0, tone: "amber" },
-          { label: "Dekh liya (poora)", n: a.seen || 0, tone: "green" },
+          { label: "Dekh liya (poora)", n: a.seen || 0, tone: "green", main: true },
           { label: "Nahi aaye", n: a.no_show || 0, tone: "violet" },
           { label: "Cancel", n: a.cancelled || 0, tone: "rose" },
         ]}
@@ -157,66 +275,75 @@ function WorkStatus({ s }) {
   );
 }
 
+function TopVillages({ list }) {
+  const max = Math.max(1, ...list.map((v) => v.gmv));
+  return (
+    <div className="card rank-card">
+      <h3 className="meta strong">
+        <Icon name="map" size={20} /> Sabse aage gaon
+      </h3>
+      {list.length === 0 ? (
+        <p className="chart-empty">Abhi data nahi. Bookings aate hi yahan gaon ki ranking dikhegi.</p>
+      ) : (
+        <ol className="rank-list">
+          {list.map((v, i) => (
+            <li key={v._id}>
+              <span className={`rank-no r${i + 1}`}>{i + 1}</span>
+              <div className="rank-body">
+                <div className="row-between">
+                  <strong>{v.name}</strong>
+                  <span>
+                    {rs(v.gmv)} <small className="muted">· {v.bookings} booking</small>
+                  </span>
+                </div>
+                <div className="rank-bar">
+                  <span style={{ width: `${Math.max(4, (v.gmv / max) * 100)}%` }} />
+                </div>
+              </div>
+            </li>
+          ))}
+        </ol>
+      )}
+    </div>
+  );
+}
+
 function Dashboard() {
   const [days, setDays] = useState(30);
-  const q = useQuery({ queryKey: ["stats", days], queryFn: () => get("/admin/stats", { days }), refetchInterval: 60_000 });
+  const q = useQuery({ queryKey: ["stats", days], queryFn: () => get("/admin/stats", { days }), refetchInterval: 60_000, placeholderData: (p) => p });
   return (
-    <>
-      <div className="pill-row">
-        {[7, 30, 90].map((d) => (
-          <button key={d} className={`pill ${days === d ? "on" : ""}`} onClick={() => setDays(d)}>
-            {d} din
-          </button>
-        ))}
-      </div>
-      <QueryState query={q}>
-        {(s) => (
-          <>
-            <div className="stat-row">
-              <Stat icon="file" label="Bookings" value={s.bookings} />
-              <Stat icon="rupee" tone="green" label="GMV" value={rs(s.gmv)} />
-              <Stat icon="chart" tone="violet" label="Platform margin" value={rs(s.platformMargin)} />
-              <Stat icon="wallet" tone="amber" label="Lab payout" value={rs(s.labPayout)} />
-              <Stat icon="users" tone="rose" label="Repeat rate" value={`${s.repeatRate}%`} />
-              <Stat icon="steth" label="Doctor tokens" value={s.counts.appointments} />
+    <QueryState query={q}>
+      {(s) => (
+        <>
+          <Hero s={s} days={days} />
+          <MoneyPanel />
+          <div className="row-between wrap dash-section-row">
+            <h2 className="dash-section">Kaam-kaaj (pichhle {days} din)</h2>
+            <div className="pill-row">
+              {[7, 30, 90].map((d) => (
+                <button key={d} className={`pill ${days === d ? "on" : ""}`} onClick={() => setDays(d)}>
+                  {d} din
+                </button>
+              ))}
             </div>
-            <div className="stat-row">
-              <Stat icon="user" label="Patients" value={s.counts.patients} />
-              <Stat icon="briefcase" tone="amber" label="Agents" value={s.counts.agents} />
-              <Stat icon="flask" label="Labs (chalu)" value={s.counts.labs} />
-              <Stat icon="steth" tone="violet" label="Doctors (chalu)" value={s.counts.doctors} />
-              <Stat icon="map" tone="green" label="Gaon" value={s.counts.villages} />
-              <Stat icon="wallet" tone="rose" label="Settlement baaki" value={s.counts.pendingSettlements} />
-            </div>
-            <WorkStatus s={s} />
-            <div className="card">
-              <BarChart data={s.bookingsPerDay} valueKey="bookings" label="Bookings per day" />
-              <BarChart data={s.bookingsPerDay} valueKey="gmv" label="GMV per day (₹)" format={rs} />
-            </div>
-            <div className="two">
-              <div className="card">
-                <h3>Top gaon</h3>
-                {s.topVillages.length === 0 ? (
-                  <p className="muted">Abhi data nahi.</p>
-                ) : (
-                  <table className="table">
-                    <tbody>
-                      {s.topVillages.map((v) => (
-                        <tr key={v._id}>
-                          <td>{v.name}</td>
-                          <td>{v.bookings} booking</td>
-                          <td>{rs(v.gmv)}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                )}
-              </div>
-            </div>
-          </>
-        )}
-      </QueryState>
-    </>
+          </div>
+          <div className="stat-row six">
+            <Stat icon="chart" tone="violet" label="Platform margin" value={rs(s.platformMargin)} />
+            <Stat icon="wallet" tone="amber" label="Lab payout" value={rs(s.labPayout)} />
+            <Stat icon="users" tone="rose" label="Repeat rate" value={`${s.repeatRate}%`} />
+            <Stat icon="steth" label="Doctor tokens" value={s.counts.appointments} />
+            <Stat icon="briefcase" tone="amber" label="Agents" value={s.counts.agents} />
+            <Stat icon="wallet" tone="rose" label="Settlement baaki" value={s.counts.pendingSettlements} />
+          </div>
+          <div className="two">
+            <AreaChart data={s.bookingsPerDay} valueKey="bookings" label="Roz ki bookings" tone="teal" />
+            <AreaChart data={s.bookingsPerDay} valueKey="gmv" label="Roz ka kaarobaar (₹)" format={fmtShort} tone="violet" />
+          </div>
+          <WorkStatus s={s} />
+          <TopVillages list={s.topVillages} />
+        </>
+      )}
+    </QueryState>
   );
 }
 
@@ -226,6 +353,7 @@ const monthStart = () => {
   return `${d.slice(0, 8)}01`;
 };
 const todayIst = () => new Date(Date.now() + 5.5 * 3600 * 1000).toISOString().slice(0, 10);
+const daysAgoIst = (n) => new Date(Date.now() - n * 864e5 + 5.5 * 36e5).toISOString().slice(0, 10);
 const MODE_LABEL = { cash: "Cash (lab ne liya)", upi: "UPI (site pe)", online: "Online (site pe)" };
 
 // "+₹110 hum denge" / "₹340 lab dega" — the sign alone is too easy to misread.
@@ -284,32 +412,7 @@ function Finance() {
           const rows = d.data.filter((r) => !onlyActive || r.bookings > 0);
           return (
             <>
-              <div className="stat-row">
-                <Stat icon="file" label="Sample liye (bookings)" value={t.bookings} />
-                <Stat icon="rupee" tone="green" label="Kul kamai (GMV)" value={rs(t.gross)} />
-                <Stat icon="chart" tone="violet" label="Hamara commission" value={rs(t.commission)} />
-                <Stat icon="wallet" tone="amber" label="Labs ki kamai" value={rs(t.labEarning)} />
-                <Stat icon="briefcase" tone="rose" label="Cash labs ke paas" value={rs(t.cashCollected)} />
-                <Stat icon="globe" label="Site pe aaya (online)" value={rs(t.onlineCollected)} />
-              </div>
-
-              <div className="flow-grid">
-                <div className="card flow flow-get">
-                  <span className="flow-label">Labs se lena hai</span>
-                  <strong>{rs(t.labOwesUs)}</strong>
-                  <p className="muted small">Lab ne mareez se cash liya, usme se hamara commission.</p>
-                </div>
-                <div className="card flow flow-pay">
-                  <span className="flow-label">Labs ko dena hai</span>
-                  <strong>{rs(t.weOweLab)}</strong>
-                  <p className="muted small">Mareez ne site pe pay kiya, usme se lab ka hissa.</p>
-                </div>
-                <div className="card flow flow-net">
-                  <span className="flow-label">Net settlement (abhi baaki)</span>
-                  <Net value={t.pendingNet} big />
-                  <p className="muted small">Dono ka hisaab milakar. Paid settlement wali bookings hata kar.</p>
-                </div>
-              </div>
+              <MoneyOverview d={d} />
 
               <div className="card">
                 <div className="row-between">
@@ -378,6 +481,7 @@ function Finance() {
                   Sirf woh bookings ginti mein hain jinka sample is samay mein liya gaya (collected / report di). Settlement "Settlements" tab se paid mark karein.
                 </p>
               </div>
+              <TestProfit rows={d.byTest || []} collectionFees={t.collectionFees || 0} range={d.range} />
             </>
           );
         }}
@@ -458,6 +562,610 @@ function FinanceRow({ r, range, open, onToggle }) {
   );
 }
 
+function TestProfit({ rows, collectionFees, range }) {
+  const tot = rows.reduce((a, r) => ({ count: a.count + r.count, revenue: a.revenue + r.revenue, lab: a.lab + r.labShare, plat: a.plat + r.platformShare }), { count: 0, revenue: 0, lab: 0, plat: 0 });
+  return (
+    <div className="card">
+      <div className="row-between wrap">
+        <div>
+          <h3>Test-wise profit</h3>
+          <p className="muted small">Kis test se kitna bana. Rate wahi hai jo booking ke time fix hua tha.</p>
+        </div>
+        {rows.length > 0 && (
+          <button
+            className="secondary-btn small"
+            onClick={() =>
+              downloadCsv(`test_profit_${range.from}_${range.to}.csv`, [
+                ["Test", "Kitni baar", "Patient rate", "Mareez se aaya", "Lab ka hissa", "Platform ka hissa", "Margin %"],
+                ...rows.map((r) => [r.name, r.count, r.minRate === r.maxRate ? r.minRate : `${r.minRate}-${r.maxRate}`, r.revenue, r.labShare, r.platformShare, pct(r.platformShare, r.revenue)]),
+              ])
+            }
+          >
+            ⬇ Excel (CSV)
+          </button>
+        )}
+      </div>
+      {rows.length === 0 ? (
+        <p className="muted">Is samay mein koi test nahi hua.</p>
+      ) : (
+        <div className="table-wrap">
+          <table className="table">
+            <thead>
+              <tr>
+                <th>Test</th>
+                <th className="num">Kitni baar</th>
+                <th className="num">Patient rate</th>
+                <th className="num">Mareez se aaya</th>
+                <th className="num">Lab ka hissa</th>
+                <th className="num">Platform ka hissa</th>
+                <th className="num">Margin</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r) => (
+                <tr key={r.name}>
+                  <td className="strong">{r.name}</td>
+                  <td className="num">{r.count}</td>
+                  <td className="num">{r.minRate === r.maxRate ? rs(r.minRate) : `${rs(r.minRate)}–${rs(r.maxRate)}`}</td>
+                  <td className="num">{rs(r.revenue)}</td>
+                  <td className="num">{rs(r.labShare)}</td>
+                  <td className="num strong profit">{rs(r.platformShare)}</td>
+                  <td className="num">
+                    <span className="margin-chip">{pct(r.platformShare, r.revenue)}%</span>
+                  </td>
+                </tr>
+              ))}
+              {collectionFees > 0 && (
+                <tr>
+                  <td className="strong">Home collection fee</td>
+                  <td className="num">–</td>
+                  <td className="num">–</td>
+                  <td className="num">{rs(collectionFees)}</td>
+                  <td className="num">{rs(0)}</td>
+                  <td className="num strong profit">{rs(collectionFees)}</td>
+                  <td className="num">
+                    <span className="margin-chip">100%</span>
+                  </td>
+                </tr>
+              )}
+            </tbody>
+            <tfoot>
+              <tr>
+                <th>Kul</th>
+                <th className="num">{tot.count}</th>
+                <th className="num"></th>
+                <th className="num">{rs(tot.revenue + collectionFees)}</th>
+                <th className="num">{rs(tot.lab)}</th>
+                <th className="num">{rs(tot.plat + collectionFees)}</th>
+                <th className="num">{pct(tot.plat + collectionFees, tot.revenue + collectionFees)}%</th>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
+const pct = (part, whole) => (whole ? Math.round((part / whole) * 1000) / 10 : 0);
+const splitAt = (amount, commission) => {
+  const lab = Math.round(amount * (1 - commission / 100));
+  return { lab, platform: amount - lab };
+};
+
+// ---------- rules & rates (super admin only) ----------
+// The written money rules + every lab's rate card, printable as a PDF for agreements with labs.
+function RulesRates() {
+  const q = useQuery({ queryKey: ["rateCard"], queryFn: () => get("/admin/rate-card") });
+  const [labId, setLabId] = useState("all");
+  const [amount, setAmount] = useState(1000);
+  const [commission, setCommission] = useState(30);
+
+  const printPdf = () => {
+    const old = document.title;
+    document.title = `NidaanSetu_Rules_and_Rates_${todayIst()}`;
+    window.print();
+    document.title = old;
+  };
+
+  return (
+    <QueryState query={q}>
+      {(d) => {
+        const labs = d.data;
+        const shown = labId === "all" ? labs : labs.filter((l) => l._id === labId);
+        const rates = [...new Set([30, ...labs.map((l) => l.commissionPercent)])].sort((a, b) => a - b);
+        const amt = Math.max(0, Number(amount) || 0);
+        const calc = splitAt(amt, Number(commission) || 0);
+        const def = labs[0] || { collectionFee: 49, freeCollectionAbove: 499, minOrderValue: 199 };
+        return (
+          <div className="rules">
+            <div className="card toolbar no-print">
+              <div>
+                <strong>Rules, commission aur rate card</strong>
+                <div className="muted small">Ye section sirf super admin dekh sakta hai. Labs ke saath agreement ke liye PDF download karein.</div>
+              </div>
+              <button className="primary-btn small" onClick={printPdf}>
+                <Icon name="file" size={18} /> PDF download karein
+              </button>
+            </div>
+
+            <article className="rules-doc">
+              <header className="doc-head">
+                <div>
+                  <h2>NidaanSetu: Paise ke niyam aur rate card</h2>
+                  <p className="muted small">Taiyaar kiya: {prettyDate(todayIst())} · Sirf andar ke istemaal ke liye (confidential)</p>
+                </div>
+              </header>
+
+              <section>
+                <h3>1. Paisa kaise batta hai</h3>
+                <div className="formula">
+                  <div>
+                    <span>Patient rate</span>
+                    <strong>Mareez jo deta hai</strong>
+                  </div>
+                  <span className="op">=</span>
+                  <div>
+                    <span>Lab ka hissa (B2B)</span>
+                    <strong>Rate × (100 − commission%)</strong>
+                  </div>
+                  <span className="op">+</span>
+                  <div className="hl">
+                    <span>Platform ka hissa</span>
+                    <strong>Rate × commission%</strong>
+                  </div>
+                </div>
+                <ol className="rule-list">
+                  <li>
+                    <b>Patient rate</b> = lab ka walk-in rate (jo lab counter pe leta hai). Mareez ko isse zyada kabhi nahi lagta.
+                  </li>
+                  <li>
+                    <b>Lab ka hissa</b> = rate × (100 − commission%), poore rupaye mein round. Kisi test pe agent/admin ne alag B2B rate rakha ho toh wahi lagta hai (rate card mein "custom" likha hai).
+                  </li>
+                  <li>
+                    <b>Platform ka hissa</b> = patient rate − lab ka hissa. Ye aapka profit hai.
+                  </li>
+                  <li>
+                    <b>Home collection fee</b> (abhi ₹{def.collectionFee}): jab tests ka total ₹{def.freeCollectionAbove} se kam ho. Ye fee <b>poori platform ki</b> hai, lab ka hissa isme nahi.
+                  </li>
+                  <li>
+                    <b>Minimum booking</b>: ₹{def.minOrderValue} se kam ki jaanch book nahi hoti.
+                  </li>
+                  <li>
+                    <b>Rate lock</b>: booking ke time jo rate tha wahi lagta hai. Baad mein rate badalne se purani booking ka hisaab nahi badalta.
+                  </li>
+                  <li>
+                    <b>Cancel booking</b> pe kisi ka koi paisa nahi banta.
+                  </li>
+                </ol>
+              </section>
+
+              <section>
+                <h3>2. Kaun kisko dega</h3>
+                <div className="two">
+                  <div className="card inset">
+                    <strong>Cash payment (lab ne mareez se liya)</strong>
+                    <p className="small">Poora paisa lab ke paas hai. <b>Lab platform ko uska hissa (commission + collection fee) dega.</b></p>
+                  </div>
+                  <div className="card inset">
+                    <strong>Online / UPI (site pe aaya)</strong>
+                    <p className="small">Poora paisa platform ke paas hai. <b>Platform lab ko uska hissa (B2B) dega.</b></p>
+                  </div>
+                </div>
+                <ol className="rule-list" start={8}>
+                  <li>
+                    <b>Settlement har hafte</b>: Somvaar subah 6 baje pichhle hafte ka hisaab apne aap banta hai. Final = lab ka hissa − lab ke paas aaya cash. Plus ho toh platform lab ko dega, minus ho toh lab platform ko dega.
+                  </li>
+                  <li>Payment ke baad admin UTR/reference daal ke settlement "paid" mark karega. Uske baad woh bookings dobara nahi gini jaati.</li>
+                  <li>Ginti sirf un bookings ki hoti hai jinka sample le liya gaya (collected / report di).</li>
+                </ol>
+              </section>
+
+              <section>
+                <h3>3. OTP ke niyam</h3>
+                <ol className="rule-list" start={11}>
+                  <li>Har booking ka OTP ek hi baar banta hai aur hamesha same rehta hai. Time se expire nahi hota.</li>
+                  <li>OTP sirf tab band hota hai jab booking cancel ho, sample le liya jaaye, ya 5 baar galat OTP daala jaaye (tab booking lock hoti hai).</li>
+                  <li>Doctor appointment ke receipt code pe bhi yahi niyam lagte hain.</li>
+                </ol>
+              </section>
+
+              <section>
+                <h3>4. Kitne rupaye ke test pe kitna kiska</h3>
+                <div className="table-wrap">
+                  <table className="table">
+                    <thead>
+                      <tr>
+                        <th>Test rate</th>
+                        {rates.map((c) => (
+                          <th key={c} className="num">
+                            {c}% commission
+                            <br />
+                            <span className="sub-th">lab / platform</span>
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {[100, 200, 300, 500, 800, 1000, 1500, 2000, 3000, 5000].map((a) => (
+                        <tr key={a}>
+                          <td className="strong">{rs(a)}</td>
+                          {rates.map((c) => {
+                            const x = splitAt(a, c);
+                            return (
+                              <td key={c} className="num">
+                                {rs(x.lab)} / <span className="profit strong">{rs(x.platform)}</span>
+                              </td>
+                            );
+                          })}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div className="calc no-print">
+                  <strong>Calculator</strong>
+                  <label>
+                    Test rate ₹
+                    <input type="number" min="0" value={amount} onChange={(e) => setAmount(e.target.value)} />
+                  </label>
+                  <label>
+                    Commission %
+                    <input type="number" min="0" max="90" value={commission} onChange={(e) => setCommission(e.target.value)} />
+                  </label>
+                  <span>
+                    Lab ko <b>{rs(calc.lab)}</b> · Platform ko <b className="profit">{rs(calc.platform)}</b>
+                  </span>
+                </div>
+              </section>
+
+              <section>
+                <div className="row-between wrap">
+                  <h3>5. Har lab ka rate card</h3>
+                  <select className="no-print" value={labId} onChange={(e) => setLabId(e.target.value)} aria-label="Lab chunein">
+                    <option value="all">Sab labs</option>
+                    {labs.map((l) => (
+                      <option key={l._id} value={l._id}>
+                        {l.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                {shown.length === 0 && <p className="muted">Abhi koi chalu lab nahi hai.</p>}
+                {shown.map((l) => {
+                  const tot = l.tests.reduce((a, t) => ({ p: a.p + t.patientPrice, lab: a.lab + t.labShare, plat: a.plat + t.platformShare }), { p: 0, lab: 0, plat: 0 });
+                  return (
+                    <div key={l._id} className="lab-rate">
+                      <div className="lab-rate-head">
+                        <div>
+                          <strong>{l.name}</strong>
+                          <div className="muted small">
+                            {[l.block, l.phone].filter(Boolean).join(" · ")}
+                          </div>
+                        </div>
+                        <div className="chips">
+                          <span className="chip ref">{l.commissionPercent}% commission</span>
+                          <span className="chip">Collection fee ₹{l.collectionFee} (₹{l.freeCollectionAbove}+ pe free)</span>
+                          <span className="chip">Min ₹{l.minOrderValue}</span>
+                        </div>
+                      </div>
+                      {l.tests.length === 0 ? (
+                        <p className="muted small">Is lab ki rate list abhi khaali hai.</p>
+                      ) : (
+                        <div className="table-wrap">
+                          <table className="table">
+                            <thead>
+                              <tr>
+                                <th>Test</th>
+                                <th className="num">Patient rate</th>
+                                <th className="num">Lab ko</th>
+                                <th className="num">Platform ko</th>
+                                <th className="num">Margin</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {l.tests.map((t) => (
+                                <tr key={t._id}>
+                                  <td>
+                                    {t.name}
+                                    {t.custom && <span className="chip small-chip">custom</span>}
+                                  </td>
+                                  <td className="num">{rs(t.patientPrice)}</td>
+                                  <td className="num">{rs(t.labShare)}</td>
+                                  <td className="num strong profit">{rs(t.platformShare)}</td>
+                                  <td className="num">
+                                    <span className="margin-chip">{pct(t.platformShare, t.patientPrice)}%</span>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                            <tfoot>
+                              <tr>
+                                <th>{l.tests.length} test</th>
+                                <th className="num">{rs(tot.p)}</th>
+                                <th className="num">{rs(tot.lab)}</th>
+                                <th className="num">{rs(tot.plat)}</th>
+                                <th className="num">{pct(tot.plat, tot.p)}%</th>
+                              </tr>
+                            </tfoot>
+                          </table>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </section>
+              <footer className="doc-foot muted small">NidaanSetu · Ye document system ke live rates se bana hai. Rate badalne pe naya PDF download karein.</footer>
+            </article>
+          </div>
+        );
+      }}
+    </QueryState>
+  );
+}
+
+// ---------- master money view ----------
+// Where the money came from, whose share is what, and per lab who pays whom.
+// Labs are never netted against each other: "to pay" and "to collect" stay separate.
+function MoneyOverview({ d, compact }) {
+  const t = d.totals;
+  const testMargin = t.commission - (t.collectionFees || 0);
+  const pay = d.data.filter((r) => r.pendingNet > 0).sort((a, b) => b.pendingNet - a.pendingNet);
+  const collect = d.data.filter((r) => r.pendingNet < 0).sort((a, b) => a.pendingNet - b.pendingNet);
+  const cashPct = t.gross ? Math.round((t.cashCollected / t.gross) * 100) : 0;
+  return (
+    <div className="money">
+      <div className="money-grid">
+        <div className="card money-card">
+          <span className="money-step">1</span>
+          <span className="flow-label">Paisa kahan aaya</span>
+          <strong className="money-big">{rs(t.gross)}</strong>
+          <p className="muted small">{t.bookings} sample · mareezon ne kul diya</p>
+          <div className="split-bar" aria-hidden="true">
+            <span className="seg-cash" style={{ flex: t.cashCollected || 0 }} />
+            <span className="seg-online" style={{ flex: t.onlineCollected || 0 }} />
+            {!t.gross && <span style={{ flex: 1 }} />}
+          </div>
+          <dl className="money-rows">
+            <div>
+              <dt>
+                <i className="dot-cash" /> Cash (labs ke paas)
+              </dt>
+              <dd>
+                {rs(t.cashCollected)} <small>{cashPct}%</small>
+              </dd>
+            </div>
+            <div>
+              <dt>
+                <i className="dot-online" /> Online (aapke account mein)
+              </dt>
+              <dd>
+                {rs(t.onlineCollected)} <small>{t.gross ? 100 - cashPct : 0}%</small>
+              </dd>
+            </div>
+          </dl>
+        </div>
+
+        <div className="card money-card">
+          <span className="money-step">2</span>
+          <span className="flow-label">Kiska kitna bana</span>
+          <strong className="money-big profit">{rs(t.commission)}</strong>
+          <p className="muted small">Aapka profit (platform ka hissa)</p>
+          <dl className="money-rows">
+            <div>
+              <dt>Test margin</dt>
+              <dd>{rs(testMargin)}</dd>
+            </div>
+            <div>
+              <dt>Home collection fee</dt>
+              <dd>{rs(t.collectionFees || 0)}</dd>
+            </div>
+            <div className="sep">
+              <dt>Labs ka hissa</dt>
+              <dd>{rs(t.labEarning)}</dd>
+            </div>
+          </dl>
+        </div>
+
+        <div className="card money-card money-settle">
+          <span className="money-step">3</span>
+          <span className="flow-label">Settlement (abhi baaki)</span>
+          <div className="settle-pair">
+            <div className="settle-out">
+              <small>Aapko labs ko dena hai</small>
+              <strong>{rs(t.payToLabs || 0)}</strong>
+              <span>{t.labsToPay || 0} lab</span>
+            </div>
+            <div className="settle-in">
+              <small>Labs se lena hai</small>
+              <strong>{rs(t.collectFromLabs || 0)}</strong>
+              <span>{t.labsToCollect || 0} lab</span>
+            </div>
+          </div>
+          <p className="small settle-note">Har lab ka alag hisaab hai. Ek lab ka lena doosre lab ke dene se kata nahi jaata.</p>
+        </div>
+      </div>
+
+      <div className="two who-lists">
+        <WhoList title="Inko paisa dena hai" tone="out" rows={pay} empty="Abhi kisi lab ko kuch nahi dena." />
+        <WhoList title="Inse paisa lena hai" tone="in" rows={collect} empty="Abhi kisi lab se kuch nahi lena." />
+      </div>
+
+      {!compact && (
+        <div className="card proof">
+          <span className="flow-label">Sab settle hone ke baad aapke paas bachega</span>
+          <div className="final-steps light">
+            <div>
+              <span>Online aaya</span>
+              <strong>{rs(t.onlineCollected)}</strong>
+            </div>
+            <span className="op">−</span>
+            <div>
+              <span>Online ka lab hissa (dena)</span>
+              <strong>{rs(t.weOweLab)}</strong>
+            </div>
+            <span className="op">+</span>
+            <div>
+              <span>Cash ka commission (lena)</span>
+              <strong>{rs(t.labOwesUs)}</strong>
+            </div>
+            <span className="op">=</span>
+            <div className="hl">
+              <span>Aapka profit</span>
+              <strong>{rs(t.onlineCollected - t.weOweLab + t.labOwesUs)}</strong>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function WhoList({ title, tone, rows, empty }) {
+  const total = rows.reduce((s, r) => s + Math.abs(r.pendingNet), 0);
+  return (
+    <div className={`card who who-${tone}`}>
+      <div className="row-between">
+        <h3>{title}</h3>
+        <strong className="who-total">{rs(total)}</strong>
+      </div>
+      {rows.length === 0 ? (
+        <p className="muted small">{empty}</p>
+      ) : (
+        <ul className="who-rows">
+          {rows.map((r) => (
+            <li key={r.lab._id}>
+              <span className="avatar sm" aria-hidden="true">
+                {r.lab.name.slice(0, 1).toUpperCase()}
+              </span>
+              <div className="who-name">
+                <strong>{r.lab.name}</strong>
+                <small>
+                  {r.bookings} sample · cash {rs(r.cashCollected)} · online {rs(r.onlineCollected)}
+                  {r.lab.phone ? ` · ${r.lab.phone}` : ""}
+                </small>
+              </div>
+              <strong className="who-amt">{rs(Math.abs(r.pendingNet))}</strong>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+// Money block on the main dashboard, with its own period.
+function MoneyPanel() {
+  const [range, setRange] = useState({ from: monthStart(), to: todayIst() });
+  const q = useQuery({ queryKey: ["finance", range], queryFn: () => get("/admin/finance", range), placeholderData: (p) => p, refetchInterval: 60_000 });
+  const presets = [
+    ["Is mahine", { from: monthStart(), to: todayIst() }],
+    ["Pichhle 7 din", { from: daysAgoIst(6), to: todayIst() }],
+    ["Pichhle 30 din", { from: daysAgoIst(29), to: todayIst() }],
+    ["Is saal", { from: `${todayIst().slice(0, 4)}-01-01`, to: todayIst() }],
+  ];
+  return (
+    <section>
+      <div className="row-between wrap dash-section-row">
+        <h2 className="dash-section">Paise ka poora hisaab</h2>
+        <div className="pill-row">
+          {presets.map(([label, r]) => (
+            <button key={label} className={`pill ${range.from === r.from && range.to === r.to ? "on" : ""}`} onClick={() => setRange(r)}>
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
+      <QueryState query={q}>{(d) => <MoneyOverview d={d} />}</QueryState>
+    </section>
+  );
+}
+
+// ---------- agents ----------
+function Agents() {
+  const qc = useQueryClient();
+  const q = useQuery({ queryKey: ["adminAgents"], queryFn: () => get("/admin/agents") });
+  const [temp, setTemp] = useState(null);
+  const [err, setErr] = useState("");
+  const refresh = () => qc.invalidateQueries({ queryKey: ["adminAgents"] });
+  async function toggle(u) {
+    setErr("");
+    try {
+      await patch(`/admin/users/${u._id}/status`, { status: u.status === "active" ? "disabled" : "active" });
+      refresh();
+    } catch (e) {
+      setErr(errorMessage(e));
+    }
+  }
+  async function reset(u) {
+    if (!window.confirm(`${u.name} ka password reset karein? Unhe naya temporary password dena hoga.`)) return;
+    try {
+      const r = await post(`/admin/users/${u._id}/reset-password`, {});
+      setTemp({ email: r.user.email || r.user.phone, password: r.tempPassword });
+      refresh();
+    } catch (e) {
+      setErr(errorMessage(e));
+    }
+  }
+  return (
+    <>
+      <CreateAgent startOpen onCreated={(t) => (setTemp(t), refresh())} />
+      <TempPassword email={temp?.email} password={temp?.password} />
+      <ErrorMsg msg={err} />
+      <QueryState query={q} isEmpty={(d) => d.data.length === 0} empty="Abhi koi agent nahi hai. Upar form se pehla agent banayein.">
+        {(d) => (
+          <div className="table-wrap">
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>Agent</th>
+                  <th>Login</th>
+                  <th className="num">Lab jode</th>
+                  <th className="num">Doctor jode</th>
+                  <th>Aakhri login</th>
+                  <th>Status</th>
+                  <th />
+                </tr>
+              </thead>
+              <tbody>
+                {d.data.map((u) => (
+                  <tr key={u._id}>
+                    <td>
+                      <strong>{u.name}</strong>
+                      {u.mustChangePassword && <div className="chip">Temp password</div>}
+                    </td>
+                    <td>
+                      {u.email}
+                      {u.phone && <div className="muted small">{u.phone}</div>}
+                    </td>
+                    <td className="num strong">{u.labs}</td>
+                    <td className="num strong">{u.doctors}</td>
+                    <td>{prettyDateTime(u.lastLoginAt) || "—"}</td>
+                    <td>
+                      <Badge status={u.status} label={u.status} />
+                    </td>
+                    <td>
+                      <div className="btn-row">
+                        <button className="secondary-btn small" onClick={() => toggle(u)}>
+                          {u.status === "active" ? "Disable" : "Enable"}
+                        </button>
+                        <button className="link-btn" onClick={() => reset(u)}>
+                          Reset password
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </QueryState>
+    </>
+  );
+}
+
 // ---------- users ----------
 function Users() {
   const qc = useQueryClient();
@@ -491,7 +1199,6 @@ function Users() {
 
   return (
     <>
-      <CreateAgent onCreated={(t) => (setTemp(t), refresh())} />
       <TempPassword email={temp?.email} password={temp?.password} />
       <Filters>
         <select value={role} onChange={(e) => setRole(e.target.value)} aria-label="Role">
@@ -565,8 +1272,8 @@ function Users() {
   );
 }
 
-function CreateAgent({ onCreated }) {
-  const [open, setOpen] = useState(false);
+function CreateAgent({ onCreated, startOpen = false }) {
+  const [open, setOpen] = useState(startOpen);
   const [f, setF] = useState({ name: "", email: "", phone: "" });
   const [errs, setErrs] = useState({});
   const [err, setErr] = useState("");
@@ -592,7 +1299,8 @@ function CreateAgent({ onCreated }) {
     );
   return (
     <form className="card form-card" onSubmit={submit} noValidate>
-      <h2>Naya field agent</h2>
+      <h2>Naya field agent jodein</h2>
+      <p className="muted small">Agent gaon, lab aur doctor ko platform pe jodta hai. Banane ke baad login ID aur temporary password yahin dikhega.</p>
       <div className="three">
         <Field label="Naam" error={errs.name}>
           <input value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} />
@@ -608,7 +1316,7 @@ function CreateAgent({ onCreated }) {
       <div className="btn-row">
         <button className="primary-btn small">Agent banayein</button>
         <button type="button" className="secondary-btn small" onClick={() => setOpen(false)}>
-          Rehne dein
+          Band karein
         </button>
       </div>
     </form>

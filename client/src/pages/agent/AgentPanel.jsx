@@ -4,7 +4,7 @@ import { Link } from "react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { get, post, patch, errorMessage, fieldErrors } from "../../api/client.js";
 import { useAuth } from "../../auth/AuthContext.jsx";
-import { Header, Badge, ErrorMsg, Field, Ok, Pager, QueryState, Tabs, TempPassword } from "../../components/ui.jsx";
+import { PanelShell, Badge, ErrorMsg, Field, Ok, Pager, QueryState, TempPassword } from "../../components/ui.jsx";
 import { rs, prettyDate, prettyDateTime, DAYS } from "../../utils.js";
 import { ScheduleRows } from "../doctor/DoctorPanel.jsx";
 
@@ -25,51 +25,48 @@ export default function AgentPanel() {
   const [tab, setTab] = useState("mine");
   const [openLab, setOpenLab] = useState(null);
   return (
-    <div className="app panel">
-      <Header title={user.name} subtitle={user.role === "super_admin" ? "Onboarding (admin)" : "Field agent panel"}>
-        {user.role === "super_admin" && (
-          <Link className="chip-btn" to="/admin">
+    <PanelShell
+      role={user.role === "super_admin" ? "Onboarding (admin)" : "Field agent"}
+      tabs={[
+        { key: "mine", label: "Mere jode hue", icon: "list" },
+        { key: "village", label: "Gaon jodein", icon: "map" },
+        { key: "lab", label: "Lab jodein", icon: "flask" },
+        { key: "doctor", label: "Doctor jodein", icon: "steth" },
+        { key: "bookings", label: "Lab booking", icon: "file" },
+      ]}
+      value={openLab ? "mine" : tab}
+      onChange={(k) => {
+        setOpenLab(null);
+        setTab(k);
+      }}
+      actions={
+        user.role === "super_admin" && (
+          <Link className="secondary-btn small" to="/admin">
             <Icon name="chart" size={18} />
-            <span className="hide-sm">Admin panel</span>
+            Admin panel
           </Link>
-        )}
-      </Header>
-      <main className="container">
-        <Tabs
-          wrap
-          tabs={[
-            { key: "mine", label: "Mere jode hue", icon: "list" },
-            { key: "village", label: "Gaon jodein", icon: "map" },
-            { key: "lab", label: "Lab jodein", icon: "flask" },
-            { key: "doctor", label: "Doctor jodein", icon: "steth" },
-            { key: "bookings", label: "Lab booking", icon: "file" },
-          ]}
-          value={openLab ? "mine" : tab}
-          onChange={(k) => {
-            setOpenLab(null);
-            setTab(k);
-          }}
-        />
-        {openLab ? (
-          <LabDetail id={openLab} onBack={() => setOpenLab(null)} />
-        ) : (
-          <>
-            {tab === "mine" && <Onboarded onOpenLab={setOpenLab} />}
-            {tab === "village" && <AddVillage />}
-            {tab === "lab" && (
-              <AddLab
-                onDone={(id) => {
-                  setOpenLab(id);
-                  setTab("mine");
-                }}
-              />
-            )}
-            {tab === "doctor" && <AddDoctor />}
-            {tab === "bookings" && <AgentBookings />}
-          </>
-        )}
-      </main>
-    </div>
+        )
+      }
+    >
+      {openLab ? (
+        <LabDetail id={openLab} onBack={() => setOpenLab(null)} />
+      ) : (
+        <>
+          {tab === "mine" && <Onboarded onOpenLab={setOpenLab} />}
+          {tab === "village" && <AddVillage />}
+          {tab === "lab" && (
+            <AddLab
+              onDone={(id) => {
+                setOpenLab(id);
+                setTab("mine");
+              }}
+            />
+          )}
+          {tab === "doctor" && <AddDoctor />}
+          {tab === "bookings" && <AgentBookings />}
+        </>
+      )}
+    </PanelShell>
   );
 }
 

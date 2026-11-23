@@ -12,6 +12,7 @@ import { audit, pick } from "../lib/audit.js";
 import { badRequest, conflict, notFound } from "../lib/errors.js";
 import { getStorage } from "../lib/storage/index.js";
 import { randomToken } from "../lib/crypto.js";
+import { financeRange, financeMatch, labFinanceSummary, financeLedger } from "../services/finance.js";
 
 const router = Router();
 router.use(...guard("lab_staff"));
@@ -141,6 +142,21 @@ router.post("/bookings/:id/report", validate({ params: idParams }), upload.singl
 
 router.get("/settlements", validate({ query: listQuery }), async (req, res) => {
   res.json(await paginate(Settlement, { lab: req.user.lab }, req.q, { allowedSort: ["weekStart"], defaultSort: { weekStart: -1 }, select: "-bookings" }));
+});
+
+// The lab's own ledger: same numbers the admin sees, so both sides know who pays whom.
+router.get("/finance", validate({ query: financeRange }), async (req, res) => {
+  const { range, match } = financeMatch(req.q);
+  const [lab, totals, data, pending] = await Promise.all([
+    Lab.findById(req.user.lab).select("name commissionPercent collectionFee freeCollectionAbove"),
+    labFinanceSummary(req.user.lab, match),
+    financeLedger(req.user.lab, match),
+    Settlement.find({ lab: req.user.lab, status: "pending" }).select("netPayable"),
+  ]);
+  if (!lab) throw notFound("Lab nahi mila");
+  // Weekly settlements already made but not yet paid, across all time.
+  const pendingSettlements = { count: pending.length, net: pending.reduce((s, x) => s + (x.netPayable || 0), 0) };
+  res.json({ range, lab, totals, data, pendingSettlements });
 });
 
 // ---------- price list ----------
