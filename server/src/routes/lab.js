@@ -49,12 +49,14 @@ router.get(
     query: listQuery.extend({
       status: z.enum(["requested", "confirmed", "collected", "report_ready", "cancelled"]).optional(),
       date: z.string().max(10).optional(),
+      collectionPoint: z.enum(["home", "clinic"]).optional(),
       limit: z.coerce.number().int().min(1).max(100).default(50),
     }),
   }),
   async (req, res) => {
     const filter = { lab: req.user.lab };
     if (req.q.status) filter.status = req.q.status;
+    if (req.q.collectionPoint) filter.collectionPoint = req.q.collectionPoint;
     if (req.q.date) filter.date = req.q.date;
     const r = await paginate(Booking, filter, req.q, { allowedSort: ["createdAt", "date"], populate: LAB_POPULATE });
     // Tab counts for the panel header
@@ -62,6 +64,23 @@ router.get(
     res.json({ ...r, data: r.data.map(labBookingView), counts: Object.fromEntries(counts.map((c) => [c._id, c.n])) });
   }
 );
+
+// Clinic pickups still to collect, grouped by clinic, so one trip can pick up every sample waiting there.
+router.get("/clinic-pickups", async (req, res) => {
+  const list = await Booking.find({ lab: req.user.lab, collectionPoint: "clinic", status: { $in: ["requested", "confirmed"] } })
+    .sort({ date: 1, createdAt: 1 })
+    .populate(LAB_POPULATE);
+  const groups = new Map();
+  for (const b of list) {
+    const key = String(b.clinic?.doctor || b.clinic?.name);
+    if (!groups.has(key)) groups.set(key, { clinic: { doctor: b.clinic?.doctor, name: b.clinic?.name, address: b.clinic?.address, location: b.clinic?.location }, waiting: 0, requested: 0, confirmed: 0, bookings: [] });
+    const g = groups.get(key);
+    g.waiting += 1;
+    g[b.status] += 1;
+    g.bookings.push(labBookingView(b));
+  }
+  res.json({ data: [...groups.values()].sort((a, b) => b.waiting - a.waiting) });
+});
 
 router.patch(
   "/bookings/:id/confirm",

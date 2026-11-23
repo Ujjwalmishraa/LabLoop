@@ -208,3 +208,45 @@ describe("patient", () => {
     }
   });
 });
+
+describe("clinic sample requests", () => {
+  const request = async (doctor, extra = {}) =>
+    as(app, doctor.token).post("/doctor/sample-requests", {
+      walkIn: { name: "Walk In" },
+      labId: String(data.labs.shree._id),
+      testIds: await testIds(data.labs.shree, ["CBC"]),
+      ...extra,
+    });
+
+  test("a doctor can't use another doctor's appointment, and only sees their own requests", async () => {
+    const date = nextDateOn(["Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]);
+    const fam = await as(app, ram.token).post("/me/family", { name: "Ram ka Beta", age: 12 });
+    const a = await as(app, ram.token).post("/appointments", { doctorId: String(data.doctors[0]._id), date, familyMemberId: fam.body._id });
+    expect(a.status).toBe(201);
+    const r = await request(devi, { walkIn: undefined, appointmentId: a.body._id });
+    expect(r.status).toBe(404);
+    const mine = await request(kumar);
+    expect(mine.status).toBe(201);
+    const deviList = await as(app, devi.token).get("/doctor/sample-requests");
+    expect(deviList.body.data.some((b) => b._id === mine.body._id)).toBe(false);
+  });
+
+  test("lab staff only see their own lab's clinic pickups, and never the OTP", async () => {
+    const mine = await request(kumar);
+    expect(mine.status).toBe(201);
+    const jeevan = await as(app, jeevanStaff.token).get("/lab/clinic-pickups");
+    expect(jeevan.status).toBe(200);
+    expect(JSON.stringify(jeevan.body)).not.toContain(mine.body._id);
+    expect((await as(app, jeevanStaff.token).patch(`/lab/bookings/${mine.body._id}/confirm`, { collectionTime: "08-10" })).status).toBe(404);
+    const shree = await as(app, shreeStaff.token).get("/lab/clinic-pickups");
+    expect(JSON.stringify(shree.body)).toContain(mine.body._id);
+    expect(JSON.stringify(shree.body)).not.toContain(`"otp":"${mine.body.otp}"`);
+    expect(JSON.stringify(shree.body)).not.toMatch(/"otp"/);
+  });
+
+  test("patients and lab staff can't create sample requests", async () => {
+    expect((await request(ram)).status).toBe(403);
+    expect((await request(shreeStaff)).status).toBe(403);
+    expect((await as(app, ram.token).get("/lab/clinic-pickups")).status).toBe(403);
+  });
+});

@@ -1,5 +1,6 @@
 import { Booking, Lab, LabTest, Village, FamilyMember } from "../models/index.js";
 import { priceBooking } from "./pricing.js";
+import { labServesClinic } from "./geo.js";
 import { randomDigits, hashOtp, safeEqual, deriveOtp } from "../lib/crypto.js";
 import { audit, pick } from "../lib/audit.js";
 import { AppError, badRequest, conflict, notFound } from "../lib/errors.js";
@@ -43,55 +44,93 @@ async function uniqueCode(prefix, model) {
   throw new Error("could not allocate booking code");
 }
 
-// Creates a test booking. Returns { booking, otp }. Only the patient is ever shown the OTP.
+// Creates a test booking. Returns { booking, otp }. The OTP is shown to the patient (and, for a clinic
+// pickup, to the doctor who has the patient in front of them); never to lab staff.
+//   collectionPoint "home":   patient account + village required; the lab must serve the village.
+//   collectionPoint "clinic": `clinicDoctor` (Doctor doc) required; the lab must serve the clinic.
+//                             `patient` may be absent for a walk-in (`walkIn.name` instead).
 export async function createBooking(req, input) {
-  const { patient, familyMemberId, villageId, labId, testIds, date, slot, address, source = "patient", referredBy, appointment, consent, paymentMode = "cash" } = input;
+  const {
+    patient,
+    familyMemberId,
+    villageId,
+    labId,
+    testIds,
+    date,
+    slot,
+    address,
+    source = "patient",
+    referredBy,
+    appointment,
+    consent,
+    paymentMode = "cash",
+    collectionPoint = "home",
+    clinicDoctor,
+    walkIn,
+    note,
+    location,
+  } = input;
 
   if (!isValidIso(date)) throw badRequest("Sahi din chunein", "BAD_DATE");
   const today = todayIso();
   if (date < today || date > addDaysIso(today, 7)) throw badRequest("Aaj se 7 din ke andar ka din chunein", "BAD_DATE");
+  if (!patient && !walkIn?.name) throw badRequest("Walk-in mareez ka naam likhein", "VALIDATION_ERROR");
+  const atClinic = collectionPoint === "clinic";
+  if (atClinic && !clinicDoctor) throw badRequest("Clinic ki location pata nahi hai", "NO_CLINIC");
 
-  const [lab, village] = await Promise.all([Lab.findOne({ _id: labId, status: "active" }), Village.findById(villageId)]);
+  const [lab, village] = await Promise.all([Lab.findOne({ _id: labId, status: "active" }), villageId ? Village.findById(villageId) : null]);
   if (!lab) throw notFound("Lab nahi mila", "LAB_NOT_FOUND");
-  if (!village) throw notFound("Gaon nahi mila", "VILLAGE_NOT_FOUND");
+  if (!atClinic && !village) throw notFound("Gaon nahi mila", "VILLAGE_NOT_FOUND");
 
   let member;
-  if (familyMemberId) {
+  if (familyMemberId && patient) {
     member = await FamilyMember.findOne({ _id: familyMemberId, owner: patient._id });
     if (!member) throw notFound("Parivaar ka sadasya nahi mila", "FAMILY_NOT_FOUND");
   }
 
-  // The lab must serve the village: if it has tagged villages, only those; otherwise by service radius.
-  const served = lab.villages || [];
-  let inRange;
-  if (served.length) inRange = served.some((v) => String(v) === String(village._id));
-  else {
-    const near = await Lab.aggregate([
-      { $geoNear: { near: village.location, distanceField: "d", spherical: true, maxDistance: lab.serviceRadiusKm * 1000, query: { _id: lab._id } } },
-    ]);
-    inRange = near.length > 0;
+  if (atClinic) {
+    if (!(await labServesClinic(lab, clinicDoctor))) throw badRequest("Yeh lab aapke clinic tak sample lene nahi aata", "OUT_OF_RANGE");
+  } else {
+    // The lab must serve the village: if it has tagged villages, only those; otherwise by service radius.
+    const served = lab.villages || [];
+    let inRange;
+    if (served.length) inRange = served.some((v) => String(v) === String(village._id));
+    else {
+      const near = await Lab.aggregate([
+        { $geoNear: { near: village.location, distanceField: "d", spherical: true, maxDistance: lab.serviceRadiusKm * 1000, query: { _id: lab._id } } },
+      ]);
+      inRange = near.length > 0;
+    }
+    if (!inRange) throw badRequest("Yeh lab aapke gaon tak sample lene nahi aata", "OUT_OF_RANGE");
   }
-  if (!inRange) throw badRequest("Yeh lab aapke gaon tak sample lene nahi aata", "OUT_OF_RANGE");
 
   const ids = [...new Set(testIds.map(String))];
   const tests = await LabTest.find({ _id: { $in: ids }, lab: lab._id, active: true });
   if (tests.length !== ids.length) throw badRequest("Kuch test is lab mein uplabdh nahi hain", "TEST_UNAVAILABLE");
 
-  const price = priceBooking(lab, tests);
+  const price = priceBooking(lab, tests, collectionPoint);
   if (price.testTotal < lab.minOrderValue) {
     throw badRequest(`Kam se kam ₹${lab.minOrderValue} ki jaanch book karein`, "MIN_ORDER");
   }
 
   const code = await uniqueCode("NS", Booking);
   const otp = deriveOtp(code);
+  const historyNote = atClinic ? "Doctor ne clinic se sample manga" : source === "doctor" ? "Doctor ne test likha" : "Patient ne book kiya";
   const booking = await Booking.create({
     code,
-    patient: patient._id,
+    patient: patient?._id,
     familyMember: member?._id,
-    patientName: member?.name || patient.name,
-    patientAge: member?.age,
-    village: village._id,
-    address,
+    patientName: walkIn?.name || member?.name || patient?.name,
+    patientAge: walkIn?.age ?? member?.age,
+    collectionPoint,
+    clinic: atClinic
+      ? { doctor: clinicDoctor._id, name: clinicDoctor.clinicName || clinicDoctor.name, address: clinicDoctor.clinicAddress, location: clinicDoctor.location }
+      : undefined,
+    walkIn: walkIn?.name ? walkIn : undefined,
+    note,
+    village: village?._id,
+    address: atClinic ? clinicDoctor.clinicAddress || clinicDoctor.clinicName : address,
+    location,
     lab: lab._id,
     ...price,
     date,
@@ -102,13 +141,13 @@ export async function createBooking(req, input) {
     appointment,
     consent: Boolean(consent),
     payment: { mode: paymentMode, status: "pending" },
-    history: [{ status: "requested", by: req.user._id, note: source === "doctor" ? "Doctor ne test likha" : "Patient ne book kiya" }],
+    history: [{ status: "requested", by: req.user._id, note: historyNote }],
   });
   await audit(req, {
     action: "booking.create",
     entityType: "Booking",
     entityId: booking._id,
-    after: pick(booking, ["code", "lab", "patient", "total", "labPayout", "platformMargin", "source"]),
+    after: pick(booking, ["code", "lab", "patient", "total", "labPayout", "platformMargin", "source", "collectionPoint"]),
   });
   return { booking, otp };
 }

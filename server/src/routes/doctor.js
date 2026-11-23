@@ -6,6 +6,9 @@ import { guard } from "../middleware/auth.js";
 import { validate, objectId, idParams } from "../middleware/validate.js";
 import { listQuery, paginate } from "../lib/paginate.js";
 import { createBooking, BOOKING_POPULATE } from "../services/bookings.js";
+import { labsForClinic } from "../services/geo.js";
+import { deriveOtp } from "../lib/crypto.js";
+import { phoneSchema } from "./auth.js";
 import { verifyVisitCode } from "../services/appointments.js";
 import { otpLimiter } from "../middleware/security.js";
 import { todayIso, addDaysIso } from "../lib/dates.js";
@@ -149,6 +152,115 @@ router.get("/referrals", validate({ query: listQuery }), async (req, res) => {
   });
   res.json(r);
 });
+
+// ---------- sample requests (clinic pickup or home) ----------
+// What the doctor sees of a booking they ordered: patient price only, no internal finance.
+// The pickup OTP is shown for clinic pickups (the patient is at the clinic, maybe without a phone);
+// lab staff never get it.
+export function doctorBookingView(b) {
+  const o = b.toJSON();
+  delete o.labPayout;
+  delete o.platformMargin;
+  delete o.otpAttempts;
+  delete o.settlement;
+  o.items = (o.items || []).map(({ b2bPrice: _b, ...i }) => i);
+  if (o.report) o.report = { name: o.report.name, mime: o.report.mime, uploadedAt: o.report.uploadedAt };
+  if (b.collectionPoint === "clinic" && ["requested", "confirmed"].includes(b.status) && !b.otpLocked) o.otp = deriveOtp(b.code);
+  return o;
+}
+
+const DOC_BOOKING_POPULATE = [...BOOKING_POPULATE, { path: "patient", select: "name phone" }];
+
+// Labs that collect at this doctor's clinic, nearest first.
+router.get("/clinic-labs", async (req, res) => {
+  res.json({ data: await labsForClinic(req.doctor), clinic: { name: req.doctor.clinicName, address: req.doctor.clinicAddress } });
+});
+
+const walkInSchema = z.object({
+  name: z.string().trim().min(2, "Walk-in mareez ka naam likhein").max(80),
+  age: z.coerce.number().int().min(0).max(120).optional(),
+  gender: z.enum(["male", "female", "other"]).optional(),
+  phone: phoneSchema.optional().or(z.literal("").transform(() => undefined)),
+});
+
+router.post(
+  "/sample-requests",
+  validate({
+    body: z
+      .object({
+        appointmentId: objectId.optional(),
+        walkIn: walkInSchema.optional(),
+        labId: objectId,
+        testIds: z.array(objectId).min(1, "Kam se kam ek test chunein").max(30),
+        collectionPoint: z.enum(["clinic", "home"]).default("clinic"),
+        note: z.string().trim().max(200).optional(),
+        address: z.string().trim().max(200).optional(),
+        date: z.string().max(10).optional(),
+      })
+      .refine((o) => Boolean(o.appointmentId) !== Boolean(o.walkIn), { message: "Appointment ya walk-in mareez mein se ek chunein", path: ["appointmentId"] }),
+  }),
+  async (req, res) => {
+    const { appointmentId, walkIn, labId, testIds, collectionPoint, note } = req.body;
+    const today = todayIso();
+    let a, patient;
+    if (appointmentId) {
+      // Only this doctor's own appointments; anything else is "not found".
+      a = await Appointment.findOne({ _id: appointmentId, doctor: req.doctor._id });
+      if (!a) throw notFound("Appointment nahi mila");
+      if (a.status === "cancelled") throw conflict("Cancel hue appointment pe test nahi likh sakte");
+      if (a.referredBooking) throw conflict("Is appointment pe test pehle se likha ja chuka hai", "ALREADY_REFERRED");
+      patient = await User.findOne({ _id: a.patient, role: "patient" });
+      if (!patient) throw notFound("Mareez nahi mila");
+    }
+    const home = collectionPoint === "home";
+    if (home && !patient) throw badRequest("Ghar se sample ke liye mareez ka account chahiye", "NEEDS_ACCOUNT");
+    const villageId = a?.village || patient?.village;
+    if (home && !villageId) throw badRequest("Mareez ka gaon pata nahi hai", "NO_VILLAGE");
+    // Clinic: today by default (patient is here now). Home: the day after the visit.
+    let date = req.body.date || (home ? addDaysIso(a.date >= today ? a.date : today, 1) : today);
+    if (date > addDaysIso(today, 7)) date = addDaysIso(today, 1);
+
+    const { booking } = await createBooking(req, {
+      patient,
+      familyMemberId: a?.familyMember,
+      villageId,
+      labId,
+      testIds,
+      date,
+      slot: "lab_decides",
+      address: home ? req.body.address || "Lab phone karke pata lega" : undefined,
+      source: "doctor",
+      referredBy: req.doctor._id,
+      appointment: a?._id,
+      // The doctor ordered it, so the doctor may see the report.
+      consent: true,
+      collectionPoint,
+      clinicDoctor: home ? undefined : req.doctor,
+      walkIn,
+      note,
+    });
+    if (a) {
+      a.referredBooking = booking._id;
+      await a.save();
+    }
+    await audit(req, { action: "sample_request.create", entityType: "Booking", entityId: booking._id, after: { collectionPoint, appointment: a?._id, walkIn: Boolean(walkIn) } });
+    await booking.populate(DOC_BOOKING_POPULATE);
+    res.status(201).json(doctorBookingView(booking));
+  }
+);
+
+
+router.get(
+  "/sample-requests",
+  validate({ query: listQuery.extend({ collectionPoint: z.enum(["clinic", "home"]).optional(), status: z.enum(["requested", "confirmed", "collected", "report_ready", "cancelled"]).optional() }) }),
+  async (req, res) => {
+    const filter = { referredBy: req.doctor._id };
+    if (req.q.collectionPoint) filter.collectionPoint = req.q.collectionPoint;
+    if (req.q.status) filter.status = req.q.status;
+    const r = await paginate(Booking, filter, req.q, { allowedSort: ["createdAt", "date"], populate: DOC_BOOKING_POPULATE });
+    res.json({ ...r, data: r.data.map(doctorBookingView) });
+  }
+);
 
 // ---------- schedule ----------
 export const scheduleSchema = z

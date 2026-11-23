@@ -14,11 +14,11 @@ process.env.PUBLIC_API_URL ??= process.env.CLIENT_ORIGIN;
 const { MongoMemoryServer } = await import("mongodb-memory-server");
 const mongod = await MongoMemoryServer.create();
 const { connectDb } = await import("../db.js");
-const { seedDev } = await import("./seed.js");
+const { seedDev, seedDemoActivity } = await import("./seed.js");
 const { createApp } = await import("../app.js");
 
 await connectDb(mongod.getUri("nidaansetu-e2e"));
-await seedDev();
+await seedDemoActivity(await seedDev());
 const server = createApp().listen(Number(process.env.PORT), () => console.log(`e2e API ready on :${process.env.PORT}`));
 
 const stop = async () => {

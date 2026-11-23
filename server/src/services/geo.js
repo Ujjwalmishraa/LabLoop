@@ -1,4 +1,4 @@
-import { Lab, Doctor } from "../models/index.js";
+import { Lab, Doctor, Village } from "../models/index.js";
 
 const km = (m) => Math.round(m / 100) / 10;
 
@@ -54,4 +54,41 @@ export async function doctorsNear(village, { specialty, page = 1, limit = 20, ma
     data: res.data.map(({ distanceM, ...d }) => ({ ...d, distanceKm: km(distanceM) })),
     meta: { page, limit, total, pages: Math.ceil(total / limit) },
   };
+}
+
+// ---------- clinic pickups ----------
+// The clinic's "area" = the villages the doctor is tagged to, plus the village nearest to the clinic
+// (within 5 km). A lab serves the clinic by the same rule as for a village: tagged labs only if they
+// serve one of those villages, untagged labs if the clinic is within their service radius.
+export async function clinicVillages(doctor) {
+  const nearest = await Village.findOne({ location: { $near: { $geometry: doctor.location, $maxDistance: 5000 } } }).select("_id");
+  const ids = [...(doctor.villages || []), ...(nearest ? [nearest._id] : [])];
+  return [...new Map(ids.map((id) => [String(id), id])).values()];
+}
+
+function clinicMatch(villageIds) {
+  return { $or: [{ villages: { $in: villageIds } }, { ...untagged, $expr: { $lte: ["$distanceM", { $multiply: ["$serviceRadiusKm", 1000] }] } }] };
+}
+
+// Labs that will collect at this doctor's clinic, nearest first.
+export async function labsForClinic(doctor) {
+  if (!doctor.location?.coordinates?.length) return [];
+  const ids = await clinicVillages(doctor);
+  const rows = await Lab.aggregate([
+    { $geoNear: { near: doctor.location, distanceField: "distanceM", spherical: true, query: { status: "active" } } },
+    { $match: clinicMatch(ids) },
+    { $project: { name: 1, address: 1, phone: 1, clinicPickupFee: 1, collectionFee: 1, freeCollectionAbove: 1, minOrderValue: 1, distanceM: 1 } },
+  ]);
+  return rows.map(({ distanceM, ...l }) => ({ ...l, distanceKm: km(distanceM) }));
+}
+
+export async function labServesClinic(lab, doctor) {
+  if (!doctor.location?.coordinates?.length) return false;
+  const ids = await clinicVillages(doctor);
+  const r = await Lab.aggregate([
+    { $geoNear: { near: doctor.location, distanceField: "distanceM", spherical: true, query: { _id: lab._id } } },
+    { $match: clinicMatch(ids) },
+    { $limit: 1 },
+  ]);
+  return r.length > 0;
 }

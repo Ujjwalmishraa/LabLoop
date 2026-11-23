@@ -14,10 +14,13 @@ export function withPriceDefaults(test, lab) {
 }
 
 // Price a booking from DB test documents only. Never from anything the client sent.
-export function priceBooking(lab, tests) {
+// collectionPoint "clinic" uses the lab's clinicPickupFee instead of the home collectionFee;
+// the "free above" threshold applies to both.
+export function priceBooking(lab, tests, collectionPoint = "home") {
   const items = tests.map((t) => ({ test: t._id, name: t.name, listingPrice: t.listingPrice, b2bPrice: t.b2bPrice }));
   const testTotal = items.reduce((s, i) => s + i.listingPrice, 0);
-  const collectionFee = testTotal >= lab.freeCollectionAbove ? 0 : lab.collectionFee;
+  const fee = collectionPoint === "clinic" ? (lab.clinicPickupFee ?? 0) : lab.collectionFee;
+  const collectionFee = testTotal >= lab.freeCollectionAbove ? 0 : fee;
   const total = testTotal + collectionFee;
   const labPayout = items.reduce((s, i) => s + i.b2bPrice, 0);
   return { items, testTotal, collectionFee, total, labPayout, platformMargin: total - labPayout };

@@ -1,7 +1,7 @@
 import { as, login, nextDateOn, seed, startTestApp, stopTestApp, testIds, tomorrow, village, PDF } from "./helpers.js";
-import { Booking, Settlement } from "../src/models/index.js";
+import { Booking, Settlement, Lab, Appointment } from "../src/models/index.js";
 import { lastWeekRange, addDaysIso, todayIso, weekdayOf } from "../src/lib/dates.js";
-import { computeB2b, parseTestList } from "../src/services/pricing.js";
+import { computeB2b, parseTestList, priceBooking } from "../src/services/pricing.js";
 import { canTransition } from "../src/services/bookings.js";
 
 let app, data, admin, shreeStaff, jeevanStaff, kumar, devi, ram, sita, rampur;
@@ -456,5 +456,164 @@ describe("admin money overview", () => {
     expect(a).toMatchObject({ labs: 0, doctors: 0, status: "active" });
     // Lab staff cannot see it
     expect((await as(app, shreeStaff.token).get("/admin/agents")).status).toBe(403);
+  });
+});
+
+// ---------- M2: clinic sample pickup ----------
+describe("clinic pickup pricing", () => {
+  const lab = { collectionFee: 49, clinicPickupFee: 20, freeCollectionAbove: 499 };
+  const tests = (...prices) => prices.map((p, i) => ({ _id: String(i), name: `T${i}`, listingPrice: p, b2bPrice: Math.round(p * 0.7) }));
+
+  test("home uses collectionFee, clinic uses clinicPickupFee", () => {
+    expect(priceBooking(lab, tests(300)).collectionFee).toBe(49);
+    expect(priceBooking(lab, tests(300), "home").total).toBe(349);
+    const clinic = priceBooking(lab, tests(300), "clinic");
+    expect(clinic.collectionFee).toBe(20);
+    expect(clinic.total).toBe(320);
+    expect(clinic.platformMargin).toBe(320 - 210);
+  });
+
+  test("free above the threshold for both, and clinicPickupFee defaults to 0", () => {
+    expect(priceBooking(lab, tests(300, 200), "clinic").collectionFee).toBe(0);
+    expect(priceBooking(lab, tests(300, 200), "home").collectionFee).toBe(0);
+    expect(priceBooking({ collectionFee: 49, freeCollectionAbove: 499 }, tests(300), "clinic").collectionFee).toBe(0);
+  });
+});
+
+describe("doctor sample requests (clinic pickup)", () => {
+  const shreeTests = (names) => testIds(data.labs.shree, names);
+  const walkIn = async (extra = {}) =>
+    as(app, kumar.token).post("/doctor/sample-requests", {
+      walkIn: { name: "Kamla Devi", age: 60, gender: "female" },
+      labId: shreeId(),
+      testIds: await shreeTests(["CBC"]),
+      note: "Khaali pet",
+      ...extra,
+    });
+
+  test("clinic labs: labs that serve the doctor's clinic only", async () => {
+    const r = await as(app, kumar.token).get("/doctor/clinic-labs");
+    expect(r.status).toBe(200);
+    const names = r.body.data.map((l) => l.name);
+    expect(names).toContain(data.labs.shree.name);
+    expect(names).not.toContain(data.labs.jeevan.name);
+  });
+
+  test("walk-in clinic request: no account, clinic filled from the doctor, OTP for the doctor, clinic fee", async () => {
+    await Lab.updateOne({ _id: data.labs.shree._id }, { clinicPickupFee: 25 });
+    const r = await walkIn();
+    await Lab.updateOne({ _id: data.labs.shree._id }, { clinicPickupFee: 0 });
+    expect(r.status).toBe(201);
+    expect(r.body.collectionPoint).toBe("clinic");
+    expect(r.body.patient).toBeUndefined();
+    expect(r.body.walkIn.name).toBe("Kamla Devi");
+    expect(r.body.patientName).toBe("Kamla Devi");
+    expect(r.body.clinic.name).toBe("Kumar Clinic");
+    expect(r.body.clinic.location.coordinates).toEqual(data.doctors[0].location.coordinates);
+    expect(r.body.otp).toMatch(/^\d{4}$/);
+    expect(r.body.collectionFee).toBe(25);
+    expect(r.body.total).toBe(425);
+    expect(r.body.consent).toBe(true);
+    expect(r.body.labPayout).toBeUndefined();
+    expect(r.body.platformMargin).toBeUndefined();
+  });
+
+  test("a walk-in without a name is rejected", async () => {
+    const r = await walkIn({ walkIn: { age: 40 } });
+    expect(r.status).toBe(400);
+    expect(r.body.error.code).toBe("VALIDATION_ERROR");
+    expect(r.body.error.details.map((d) => d.path)).toContain("walkIn.name");
+    const blank = await walkIn({ walkIn: { name: " " } });
+    expect(blank.status).toBe(400);
+  });
+
+  test("needs exactly one of appointment or walk-in; home pickup needs an account", async () => {
+    const neither = await as(app, kumar.token).post("/doctor/sample-requests", { labId: shreeId(), testIds: await shreeTests(["CBC"]) });
+    expect(neither.status).toBe(400);
+    const home = await walkIn({ collectionPoint: "home" });
+    expect(home.status).toBe(400);
+    expect(home.body.error.code).toBe("NEEDS_ACCOUNT");
+  });
+
+  test("a lab that does not serve the clinic is refused", async () => {
+    const r = await walkIn({ labId: String(data.labs.jeevan._id), testIds: await testIds(data.labs.jeevan, ["CBC"]) });
+    expect(r.status).toBe(400);
+    expect(r.body.error.code).toBe("OUT_OF_RANGE");
+  });
+
+  test("schema: patient is optional only with walkIn.name", async () => {
+    const b = new Booking({ code: "NS000001", lab: data.labs.shree._id, date: tomorrow(), collectionPoint: "clinic" });
+    const err = b.validateSync();
+    expect(err.errors.patient).toBeDefined();
+    b.walkIn = { name: "Someone" };
+    expect(b.validateSync()?.errors?.patient).toBeUndefined();
+    const home = new Booking({ code: "NS000002", lab: data.labs.shree._id, date: tomorrow(), patient: ram.user._id });
+    expect(home.validateSync().errors.village).toBeDefined(); // home collection needs a village
+  });
+
+  test("from an appointment: patient sees it with the OTP; lab collects with the doctor-shown OTP; report goes back to the doctor", async () => {
+    const date = nextDateOn(["Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]);
+    // A family member, so this never clashes with a token Sita took in an earlier test
+    const fam = await as(app, sita.token).post("/me/family", { name: "Sita ki Maa", age: 70 });
+    const appt = await as(app, sita.token).post("/appointments", { doctorId: String(data.doctors[0]._id), date, familyMemberId: fam.body._id });
+    expect(appt.status).toBe(201);
+    const r = await as(app, kumar.token).post("/doctor/sample-requests", { appointmentId: appt.body._id, labId: shreeId(), testIds: await shreeTests(["CBC", "HbA1c"]) });
+    expect(r.status).toBe(201);
+    expect(r.body.collectionPoint).toBe("clinic");
+    const doctorOtp = r.body.otp;
+    expect((await Appointment.findById(appt.body._id)).referredBooking.toString()).toBe(r.body._id);
+    // Only one request per appointment
+    const again = await as(app, kumar.token).post("/doctor/sample-requests", { appointmentId: appt.body._id, labId: shreeId(), testIds: await shreeTests(["CBC"]) });
+    expect(again.body.error.code).toBe("ALREADY_REFERRED");
+
+    // The patient (has an account) sees the same OTP in My bookings
+    const mine = await as(app, sita.token).get("/me/bookings");
+    const own = mine.body.data.find((b) => b._id === r.body._id);
+    expect(own.collectionPoint).toBe("clinic");
+    expect(own.otp).toBe(doctorOtp);
+
+    // Lab: grouped by clinic, never with the OTP
+    const lab = as(app, shreeStaff.token);
+    const groups = await lab.get("/lab/clinic-pickups");
+    expect(groups.status).toBe(200);
+    const kumarGroup = groups.body.data.find((g) => g.clinic.name === "Kumar Clinic");
+    expect(kumarGroup.waiting).toBeGreaterThanOrEqual(1);
+    expect(kumarGroup.bookings.some((b) => b._id === r.body._id)).toBe(true);
+    expect(JSON.stringify(groups.body)).not.toMatch(/"otp"/);
+    const onlyClinic = await lab.get("/lab/bookings?collectionPoint=clinic");
+    expect(onlyClinic.body.data.every((b) => b.collectionPoint === "clinic")).toBe(true);
+
+    // Same confirm -> collect -> report flow as home bookings
+    expect((await lab.patch(`/lab/bookings/${r.body._id}/confirm`, { collectionTime: "10-12" })).status).toBe(200);
+    const collected = await lab.patch(`/lab/bookings/${r.body._id}/collect`, { otp: doctorOtp });
+    expect(collected.status).toBe(200);
+    expect(collected.body.otp).toBeUndefined();
+    expect((await lab.upload(`/lab/bookings/${r.body._id}/report`, "report", PDF, "r.pdf", "application/pdf")).status).toBe(200);
+
+    // Doctor's "Lab requests": report ready, OTP gone, report opens; another doctor gets 404
+    const list = await as(app, kumar.token).get("/doctor/sample-requests");
+    const row = list.body.data.find((b) => b._id === r.body._id);
+    expect(row.status).toBe("report_ready");
+    expect(row.otp).toBeUndefined();
+    expect((await as(app, kumar.token).get(`/bookings/${r.body._id}/report`)).status).toBe(200);
+    expect((await as(app, devi.token).get(`/bookings/${r.body._id}/report`)).status).toBe(404);
+    // And the patient can open it too
+    expect((await as(app, sita.token).get(`/bookings/${r.body._id}/report`)).status).toBe(200);
+  });
+});
+
+describe("demo seed", () => {
+  test("seedDemoActivity creates the expo bookings", async () => {
+    const { seedDemoActivity } = await import("../src/scripts/seed.js");
+    const before = await Booking.countDocuments();
+    const r = await seedDemoActivity(data);
+    expect(r.bookings - before).toBe(4);
+    expect(r.home.status).toBe("confirmed");
+    expect(r.home.location.coordinates).toHaveLength(2);
+    expect(r.fromAppt.collectionPoint).toBe("clinic");
+    expect(r.done.status).toBe("report_ready");
+    const clinic = await Booking.find({ "clinic.doctor": data.doctors[0]._id, lab: data.labs.shree._id, _id: { $gte: r.home._id } });
+    expect(clinic).toHaveLength(2);
+    expect(clinic.some((b) => b.walkIn?.name && !b.patient)).toBe(true);
   });
 });

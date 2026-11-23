@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Icon } from "../../components/Icons.jsx";
 import { DoctorReceipt } from "../../components/Receipt.jsx";
+import { EtaBanner } from "../../components/EtaBanner.jsx";
 import { useSearchParams } from "react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { get, post, errorMessage } from "../../api/client.js";
@@ -94,7 +95,13 @@ function BookingCard({ b }) {
       </p>
       {b.familyMember && <p className="muted small">{t("mine.for", { name: b.familyMember.name })}</p>}
       {b.source === "doctor" && b.referredBy && <div className="chip ref">{t("mine.referred", { doctor: b.referredBy.name })}</div>}
+      {b.collectionPoint === "clinic" && (
+        <p className="meta small">
+          <Icon name="building" size={16} /> {t("mine.atClinic", { clinic: b.clinic?.name || "" })}
+        </p>
+      )}
       <Steps status={b.status} />
+      <EtaBanner b={b} />
       {b.otp && (
         <div className="otp-card">
           <div>
@@ -110,7 +117,7 @@ function BookingCard({ b }) {
                 <br />
               </>
             )}
-            {t("booked.otpHint")}
+            {b.collectionPoint === "clinic" ? t("mine.otpClinicHint") : t("booked.otpHint")}
           </p>
         </div>
       )}

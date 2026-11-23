@@ -65,6 +65,9 @@ test("0. one language switch changes every patient screen", async ({ page }) => 
     // Page and section headings are Hindi (h3 may be a lab or test name, which stays as entered).
     for (const h of await page.locator("h1:visible, h2:visible").allInnerTexts()) expect(h, `${path}: "${h}"`).toMatch(DEVANAGARI);
   }
+  // The choice is saved to Ram's profile; leave it as English for the other tests.
+  await switchTo("English");
+  await expect(page.locator("html")).toHaveAttribute("lang", "en");
 });
 
 test("1. patient signs up and books a test", async ({ page }) => {
@@ -101,19 +104,19 @@ test("2. lab confirms, enters OTP, uploads report; patient sees it", async ({ br
   await expect(lab).toHaveURL(/\/lab/);
   const card = () => lab.getByTestId("lab-card").filter({ hasText: code });
 
-  await card().getByRole("button", { name: "✓ Confirm, sample lene aayenge" }).click();
-  await lab.locator(".side-nav").getByRole("button", { name: /Sample lena hai/ }).click();
+  await card().getByRole("button", { name: "Confirm, we will collect" }).click();
+  await lab.locator(".side-nav").getByRole("button", { name: /To collect/ }).click();
   // Wrong OTP first
   await card().getByLabel("OTP").fill(otp === "0000" ? "1111" : "0000");
-  await card().getByRole("button", { name: "Sample le liya ✓" }).click();
+  await card().getByRole("button", { name: "Sample collected" }).click();
   await expect(card()).toContainText("Wrong OTP");
   await card().getByLabel("OTP").fill(otp);
-  await card().getByRole("button", { name: "Sample le liya ✓" }).click();
+  await card().getByRole("button", { name: "Sample collected" }).click();
 
-  await lab.locator(".side-nav").getByRole("button", { name: /Report daalni hai/ }).click();
+  await lab.locator(".side-nav").getByRole("button", { name: /Report to upload/ }).click();
   await card().getByLabel("Report file").setInputFiles({ name: "cbc-report.pdf", mimeType: "application/pdf", buffer: PDF });
-  await card().getByRole("button", { name: "📄 Report bhejein" }).click();
-  await lab.locator(".side-nav").getByRole("button", { name: /Ho gaya/ }).click();
+  await card().getByRole("button", { name: "Send report" }).click();
+  await lab.locator(".side-nav").getByRole("button", { name: /^Done/ }).click();
   await expect(card()).toContainText("Report ready");
 
   await patient.goto("/meri-booking");
@@ -176,21 +179,71 @@ test("3. agent creates a doctor; doctor logs in, changes password, refers a test
 
   // The token is today (doctor sits every day)
   const appt = doctor.getByTestId("appt-card").filter({ hasText: "Sita Devi" });
-  await appt.getByRole("button", { name: "Lab test likhein" }).click();
+  await appt.getByRole("button", { name: "Send sample request to lab" }).click();
   await appt.locator(".mini-test", { hasText: "Lipid Profile" }).click();
-  await appt.getByRole("button", { name: "Lab ko bhejein →" }).click();
-  await expect(appt).toContainText("Lab test likha: Lipid Profile");
+  await appt.getByRole("button", { name: "Send to lab" }).click();
+  await expect(appt.getByTestId("doctor-otp")).toHaveText(/^\d{4}$/);
+  await appt.getByRole("button", { name: "Done" }).click();
+  await expect(appt).toContainText("Lab tests: Lipid Profile");
 
   // "Seen" only with the code from the patient's receipt
-  await appt.getByRole("button", { name: "Dekh liya" }).click();
+  await appt.getByRole("button", { name: "Seen", exact: true }).click();
   await appt.getByLabel("Visit code").fill(visitCode === "0000" ? "1111" : "0000");
-  await appt.getByRole("button", { name: "Code sahi, dekh liya" }).click();
+  await appt.getByRole("button", { name: "Code correct, seen" }).click();
   await expect(appt).toContainText("Wrong receipt code");
   await appt.getByLabel("Visit code").fill(visitCode);
-  await appt.getByRole("button", { name: "Code sahi, dekh liya" }).click();
+  await appt.getByRole("button", { name: "Code correct, seen" }).click();
   await expect(appt).toContainText("Seen by doctor");
 
   // Patient sees the referral in "Meri booking"
   await patient.goto("/meri-booking");
   await expect(patient.getByTestId("booking-card").filter({ hasText: "Lipid Profile" })).toContainText("Prescribed by Dr. Naya Doctor");
+});
+
+test("4. doctor sends a clinic pickup for a walk-in; lab collects at the clinic with the doctor's OTP; doctor opens the report", async ({ browser }) => {
+  const doctor = await newPage(browser);
+  await login(doctor, "dr.kumar@nidaansetu.test", PW, "/login/doctor");
+  await doctor.getByTestId("walk-in-btn").click();
+  await doctor.getByLabel("Patient's name").fill("Mohan Lal");
+  await doctor.getByLabel("Age", { exact: true }).fill("58");
+  await expect(doctor.getByRole("radio", { name: /At my clinic/ })).toHaveAttribute("aria-checked", "true");
+  await doctor.locator(".mini-test", { hasText: "Lipid Profile" }).click();
+  await doctor.getByRole("button", { name: "Send to lab" }).click();
+  const otp = (await doctor.getByTestId("doctor-otp").innerText()).trim();
+  expect(otp).toMatch(/^\d{4}$/);
+  await doctor.getByRole("button", { name: "Done" }).click();
+  const req = doctor.getByTestId("request-card").filter({ hasText: "Mohan Lal" });
+  await expect(req).toContainText("Requested");
+
+  const lab = await newPage(browser);
+  await login(lab, "lab.shree@nidaansetu.test", PW, "/login/lab");
+  await lab.locator(".side-nav").getByRole("button", { name: /Clinic pickups/ }).click();
+  const group = lab.getByTestId("clinic-group").filter({ hasText: "Kumar Clinic" });
+  await expect(group).toContainText("waiting");
+  const card = group.getByTestId("lab-card").filter({ hasText: "Mohan Lal" });
+  await card.getByRole("button", { name: "Confirm, we will collect" }).click();
+  // Collect all: OTP prompts one by one; enter Mohan's when his turn comes, skip the others
+  await group.getByRole("button", { name: /Collect all at this clinic/ }).click();
+  const batch = group.locator(".batch");
+  for (let i = 0; i < 5; i++) {
+    if ((await batch.innerText()).includes("Mohan Lal")) break;
+    await batch.getByRole("button", { name: "Skip this one →" }).click();
+  }
+  await batch.getByLabel("OTP").fill(otp);
+  await batch.getByRole("button", { name: "Sample collected" }).click();
+
+  await lab.locator(".side-nav").getByRole("button", { name: /Report to upload/ }).click();
+  const up = lab.getByTestId("lab-card").filter({ hasText: "Mohan Lal" });
+  await up.getByLabel("Report file").setInputFiles({ name: "lipid.pdf", mimeType: "application/pdf", buffer: PDF });
+  await up.getByRole("button", { name: "Send report" }).click();
+  await expect(lab.getByTestId("lab-card").filter({ hasText: "Mohan Lal" })).toHaveCount(0);
+
+  await doctor.reload();
+  await doctor.locator(".side-nav").getByRole("button", { name: /Lab requests/ }).click();
+  const done = doctor.getByTestId("request-card").filter({ hasText: "Mohan Lal" });
+  await expect(done).toContainText("Report ready");
+  await expect(done.getByTestId("doctor-otp")).toHaveCount(0);
+  const [popup] = await Promise.all([doctor.waitForEvent("popup"), done.getByRole("button", { name: "View report" }).click()]);
+  await popup.waitForLoadState();
+  expect(popup.url()).toContain("/api/v1/files/");
 });

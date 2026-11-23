@@ -62,6 +62,8 @@ const labSchema = new Schema(
     pathologist: { name: String, qualification: String, registrationNo: String },
     licenceNo: String,
     collectionFee: { type: Number, default: 49, min: 0 },
+    // Charged instead of collectionFee when the collector picks up at a doctor's clinic (one trip, many samples).
+    clinicPickupFee: { type: Number, default: 0, min: 0 },
     freeCollectionAbove: { type: Number, default: 499, min: 0 },
     minOrderValue: { type: Number, default: 199, min: 0 },
     commissionPercent: { type: Number, default: 30, min: 0, max: 90 },
@@ -130,15 +132,34 @@ export const Doctor = mongoose.model("Doctor", doctorSchema);
 
 // ---------- Booking ----------
 export const BOOKING_STATUSES = ["requested", "confirmed", "collected", "report_ready", "cancelled"];
+export const COLLECTION_POINTS = ["home", "clinic"];
 const bookingSchema = new Schema(
   {
     code: { type: String, required: true, unique: true },
-    patient: { type: ObjectId, ref: "User", required: true, index: true },
+    // A LabLoop account; optional only for a clinic walk-in patient (walkIn.name set instead).
+    patient: { type: ObjectId, ref: "User", index: true, required: [function () { return !this.walkIn?.name; }, "patient or walkIn.name is required"] },
     familyMember: { type: ObjectId, ref: "FamilyMember" },
     patientName: String, // snapshot for the lab card
     patientAge: Number,
-    village: { type: ObjectId, ref: "Village", required: true },
+    // Where the collector picks up the sample: the patient's home, or the referring doctor's clinic.
+    collectionPoint: { type: String, enum: COLLECTION_POINTS, default: "home" },
+    clinic: {
+      doctor: { type: ObjectId, ref: "Doctor", index: true },
+      name: String,
+      address: String,
+      location: { type: pointSchema, default: undefined },
+    },
+    walkIn: {
+      name: { type: String, trim: true },
+      age: { type: Number, min: 0, max: 120 },
+      gender: { type: String, enum: ["male", "female", "other"] },
+      phone: { type: String, trim: true },
+    },
+    note: { type: String, trim: true, maxlength: 200 }, // doctor's note for the lab
+    village: { type: ObjectId, ref: "Village", required: [function () { return this.collectionPoint !== "clinic"; }, "village is required for home collection"] },
     address: String,
+    // Exact home pin the patient shared ("Use my current location"); else the village point is used.
+    location: { type: pointSchema, default: undefined },
     lab: { type: ObjectId, ref: "Lab", required: true, index: true },
     items: [
       new Schema(
@@ -179,6 +200,7 @@ const bookingSchema = new Schema(
   { timestamps: true, toJSON: hideFields("otpHash") }
 );
 bookingSchema.index({ lab: 1, collectedAt: 1 });
+bookingSchema.index({ lab: 1, collectionPoint: 1, status: 1 });
 export const Booking = mongoose.model("Booking", bookingSchema);
 
 // ---------- Appointment ----------

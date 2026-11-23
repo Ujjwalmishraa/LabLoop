@@ -1,7 +1,7 @@
 // npm run seed:dev  — wipes the configured database and loads demo data. Never in production.
 import { env } from "../config/env.js";
 import { connectDb, disconnectDb } from "../db.js";
-import { seedDev } from "./seed.js";
+import { seedDev, seedDemoActivity } from "./seed.js";
 import * as D from "./seed-data.js";
 
 if (env.isProd || process.env.NODE_ENV === "production") {
@@ -16,7 +16,8 @@ if (/mongodb\.net/.test(env.MONGO_URI) && process.env.SEED_ALLOW_REMOTE !== "tru
 await connectDb();
 try {
   const r = await seedDev();
-  console.log(`Seeded ${r.villages.length} villages, ${Object.keys(r.labs).length} labs, ${r.doctors.length} doctors, ${r.patients.length} patients.`);
+  const demo = await seedDemoActivity(r);
+  console.log(`Seeded ${r.villages.length} villages, ${Object.keys(r.labs).length} labs, ${r.doctors.length} doctors, ${r.patients.length} patients, ${demo.bookings} demo bookings.`);
   console.log(`\nDev logins (password for all: ${D.DEV_PASSWORD})`);
   console.log("  super_admin  admin@nidaansetu.test");
   console.log(`  agent        ${D.agent.email}`);
