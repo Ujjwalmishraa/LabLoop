@@ -191,3 +191,5 @@ Errors are always `{ "error": { "code", "message" } }`. Messages are simple Hing
 ## Not in this version
 
 Online payment gateway, WhatsApp/SMS, video consult, ambulance, pharmacy, native apps, AI report explainer. Payments (Razorpay) can go in `server/src/services/payments/` and set `payment.mode = "online"` on bookings. WhatsApp Cloud API notifications can subscribe to the booking/appointment actions already written to the audit log (or a small event emitter in `services/bookings.js`), with no changes to the route code.
+
+Thank You
